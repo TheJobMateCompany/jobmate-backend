@@ -110,22 +110,48 @@ app.get('/events', (req, res) => {
 
 /**
  * EVENT_ANALYSIS_DONE — published by AI Coach after processing an application.
- * Payload: { applicationId, userId, analysis: { score, pros, cons, ... } }
+ * Payload: { type, applicationId, userId, matchScore, hasCoverLetter, analyzedAt }
  */
 await subscriber.subscribe('EVENT_ANALYSIS_DONE', (raw) => {
   try {
     const payload = JSON.parse(raw);
-    console.log(`[redis] EVENT_ANALYSIS_DONE for user ${payload.userId}, application ${payload.applicationId}`);
+    console.log(
+      `[redis] EVENT_ANALYSIS_DONE — user ${payload.userId}, application ${payload.applicationId}, score ${payload.matchScore}`
+    );
     sseManager.send(payload.userId, {
       type: 'ANALYSIS_DONE',
       applicationId: payload.applicationId,
+      matchScore: payload.matchScore ?? null,
+      hasCoverLetter: payload.hasCoverLetter ?? false,
+      analyzedAt: payload.analyzedAt ?? null,
     });
   } catch (err) {
     console.error('[redis] Failed to parse EVENT_ANALYSIS_DONE:', err.message);
   }
 });
 
-console.log('[redis] Subscribed to: EVENT_ANALYSIS_DONE');
+/**
+ * EVENT_CARD_MOVED — published by Tracker Service after a Kanban card transition.
+ * Payload: { type, applicationId, userId, from, to }
+ */
+await subscriber.subscribe('EVENT_CARD_MOVED', (raw) => {
+  try {
+    const payload = JSON.parse(raw);
+    console.log(
+      `[redis] EVENT_CARD_MOVED — user ${payload.userId}, application ${payload.applicationId}, ${payload.from} → ${payload.to}`
+    );
+    sseManager.send(payload.userId, {
+      type: 'CARD_MOVED',
+      applicationId: payload.applicationId,
+      from: payload.from,
+      to: payload.to,
+    });
+  } catch (err) {
+    console.error('[redis] Failed to parse EVENT_CARD_MOVED:', err.message);
+  }
+});
+
+console.log('[redis] Subscribed to: EVENT_ANALYSIS_DONE, EVENT_CARD_MOVED');
 
 // ─────────────────────────────────────────────────────────────
 // Start HTTP Server

@@ -59,6 +59,11 @@ func (s *Scheduler) Stop() {
 	log.Println("[scheduler] Cron stopped")
 }
 
+// RunOnce triggers a single scrape cycle immediately (used by /trigger endpoint).
+func (s *Scheduler) RunOnce(ctx context.Context) {
+	go s.runScrape(ctx)
+}
+
 // runScrape loads all active configs and runs a Worker for each one.
 func (s *Scheduler) runScrape(ctx context.Context) {
 	log.Println("[scheduler] Scrape cycle started")

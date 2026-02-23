@@ -70,7 +70,20 @@ func main() {
 	// ── HTTP server ────────────────────────────────────────────
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", healthHandler)
-
+	// POST /trigger — manually fire a scrape cycle (useful for testing / dev)
+	mux.HandleFunc("/trigger", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			w.Write([]byte(`{"error":"POST required"}`))
+			return
+		}
+		log.Println("[discovery-service] Manual scrape triggered via /trigger")
+		sched.RunOnce(ctx)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusAccepted)
+		w.Write([]byte(`{"status":"scrape started"}`))
+	})
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%s", cfg.Port),
 		Handler:      mux,

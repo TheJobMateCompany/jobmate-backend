@@ -375,10 +375,7 @@ export const resolvers = {
 
       // 4. Publish CMD_ANALYZE_JOB → ai-coach-service via Redis
       try {
-        await publish(
-          'CMD_ANALYZE_JOB',
-          JSON.stringify({ applicationId: app.id, userId })
-        );
+        await publish('CMD_ANALYZE_JOB', { applicationId: app.id, userId });
         console.log(`[approveJob] Published CMD_ANALYZE_JOB for application ${app.id}`);
       } catch (err) {
         // Non-fatal: analysis will be triggered on next retry mechanism
