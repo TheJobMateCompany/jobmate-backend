@@ -1,0 +1,23 @@
+# ─── Core ──────────────────────────────────────────────────────
+# Redis client (Pub/Sub consumer)
+redis==5.0.8
+
+# PostgreSQL async driver
+asyncpg==0.29.0
+
+# HTTP server (health endpoint)
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+
+# ─── NLP ───────────────────────────────────────────────────────
+# spaCy for semantic analysis and keyword extraction
+# Model downloaded separately: python -m spacy download en_core_web_sm
+spacy==3.7.6
+
+# ─── LLM ───────────────────────────────────────────────────────
+# OpenAI SDK (supports Anthropic-compatible providers via base_url)
+openai==1.47.0
+
+# ─── Utilities ─────────────────────────────────────────────────
+python-dotenv==1.0.1
+pydantic==2.9.2

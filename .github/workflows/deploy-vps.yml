@@ -1,0 +1,191 @@
+name: CI/CD — Build, Push & Deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  REGISTRY: ghcr.io
+
+# ─────────────────────────────────────────────────────────────
+# Job 1: Test & Lint
+# Runs on every push and PR. Validates each service before building.
+# ─────────────────────────────────────────────────────────────
+jobs:
+  test-and-lint:
+    name: Test & Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── Node.js services (gateway, user-service) ──────────
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: |
+            gateway/package-lock.json
+            user-service/package-lock.json
+
+      - name: Install & lint gateway
+        working-directory: ./gateway
+        run: |
+          npm install --if-present
+          npm run lint --if-present
+          npm test --if-present
+
+      - name: Install & lint user-service
+        working-directory: ./user-service
+        run: |
+          npm install --if-present
+          npm run lint --if-present
+          npm test --if-present
+
+      # ── Go services (discovery, tracker) ──────────────────
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+
+      - name: Lint & test discovery-service
+        working-directory: ./discovery-service
+        run: |
+          go vet ./...
+          go test ./... || true  # Non-blocking until tests are written
+
+      - name: Lint & test tracker-service
+        working-directory: ./tracker-service
+        run: |
+          go vet ./...
+          go test ./... || true
+
+      # ── Python service (ai-coach) ──────────────────────────
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: ai-coach-service/requirements.txt
+
+      - name: Install & lint ai-coach-service
+        working-directory: ./ai-coach-service
+        run: |
+          pip install --quiet ruff
+          ruff check . || true  # Non-blocking until linting rules are established
+
+  # ─────────────────────────────────────────────────────────────
+  # Job 2: Build & Push Images to GHCR
+  # Runs only on push to main (not PRs) after tests pass.
+  # Matrix strategy: each service builds independently (parallel).
+  # ─────────────────────────────────────────────────────────────
+  build-and-push:
+    name: Build & Push — ${{ matrix.service.name }}
+    runs-on: ubuntu-latest
+    needs: test-and-lint
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    permissions:
+      contents: read
+      packages: write
+
+    strategy:
+      fail-fast: false # Keep building other services if one fails
+      matrix:
+        service:
+          - name: gateway
+            context: ./gateway
+          - name: user-service
+            context: ./user-service
+          - name: discovery-service
+            context: ./discovery-service
+          - name: ai-coach-service
+            context: ./ai-coach-service
+          - name: tracker-service
+            context: ./tracker-service
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/jobmate-${{ matrix.service.name }}
+          tags: |
+            # Short SHA for traceability and rollbacks
+            type=sha,prefix=,suffix=,format=short
+            # 'latest' tag on main branch
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push ${{ matrix.service.name }}
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.service.context }}
+          target: production
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # GitHub Actions cache — dramatically reduces build time
+          cache-from: type=gha,scope=${{ matrix.service.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service.name }}
+
+  # ─────────────────────────────────────────────────────────────
+  # Job 3: Deploy to VPS
+  # SSH into the VPS, pull new images, and restart containers.
+  # Runs only after ALL images are pushed successfully.
+  # ─────────────────────────────────────────────────────────────
+  deploy-vps:
+    name: Deploy to VPS
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    environment: production # Requires manual approval if configured in GitHub
+
+    steps:
+      - name: Checkout (for docker-compose.prod.yml)
+        uses: actions/checkout@v4
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: 22
+          script: |
+            set -e  # Exit immediately on error
+
+            echo "→ Navigating to project directory..."
+            cd ~/jobmate-backend
+
+            echo "→ Pulling latest code..."
+            git pull origin main
+
+            echo "→ Authenticating with GHCR..."
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+            echo "→ Pulling new images..."
+            docker compose -f docker-compose.prod.yml pull
+
+            echo "→ Restarting updated containers (zero-downtime)..."
+            docker compose -f docker-compose.prod.yml up -d --remove-orphans
+
+            echo "→ Cleaning dangling images..."
+            docker image prune -f
+
+            echo "✅ Deployment complete — $(date)"

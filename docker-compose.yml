@@ -1,0 +1,173 @@
+networks:
+  # Exposed to Traefik (gateway only)
+  web_network:
+    driver: bridge
+  # Isolated internal mesh (no external exposure)
+  internal_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+
+services:
+
+  # ─────────────────────────────────────────────────────────────
+  # Reverse Proxy (Dev — HTTP only, dashboard enabled)
+  # ─────────────────────────────────────────────────────────────
+  traefik:
+    image: traefik:v3.1
+    container_name: jm_traefik
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - "80:80"
+      - "8080:8080" # Traefik dashboard → http://localhost:8080
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - web_network
+
+  # ─────────────────────────────────────────────────────────────
+  # API Gateway — Node.js + Apollo GraphQL + SSE
+  # ─────────────────────────────────────────────────────────────
+  gateway:
+    build:
+      context: ./gateway
+      target: development
+    container_name: jm_gateway
+    env_file: .env
+    volumes:
+      - ./gateway:/app
+      - /app/node_modules # Preserve container node_modules
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.gateway.rule=PathPrefix(`/graphql`) || PathPrefix(`/events`) || PathPrefix(`/health`)"
+      - "traefik.http.routers.gateway.entrypoints=web"
+      - "traefik.http.services.gateway.loadbalancer.server.port=4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - web_network
+      - internal_network
+
+  # ─────────────────────────────────────────────────────────────
+  # User & Profile Service — Node.js (CV parsing delegated to Python)
+  # ─────────────────────────────────────────────────────────────
+  user-service:
+    build:
+      context: ./user-service
+      target: development
+    container_name: jm_user_service
+    env_file: .env
+    volumes:
+      - ./user-service:/app
+      - /app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - internal_network
+
+  # ─────────────────────────────────────────────────────────────
+  # Discovery Service — Go (Scraper + Cron scheduler)
+  # ─────────────────────────────────────────────────────────────
+  discovery-service:
+    build:
+      context: ./discovery-service
+      target: development
+    container_name: jm_discovery
+    env_file: .env
+    volumes:
+      - ./discovery-service:/app # Enable live reload with air
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - internal_network
+
+  # ─────────────────────────────────────────────────────────────
+  # AI Coach Service — Python (spaCy, LLM integration)
+  # ─────────────────────────────────────────────────────────────
+  ai-coach-service:
+    build:
+      context: ./ai-coach-service
+      target: development
+    container_name: jm_ai_coach
+    env_file: .env
+    volumes:
+      - ./ai-coach-service:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - internal_network
+
+  # ─────────────────────────────────────────────────────────────
+  # Tracker Service — Go (CRM Kanban state machine)
+  # ─────────────────────────────────────────────────────────────
+  tracker-service:
+    build:
+      context: ./tracker-service
+      target: development
+    container_name: jm_tracker
+    env_file: .env
+    volumes:
+      - ./tracker-service:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - internal_network
+
+  # ─────────────────────────────────────────────────────────────
+  # PostgreSQL 16
+  # ─────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: jm_postgres
+    env_file: .env
+    ports:
+      - "5432:5432" # Exposed locally for DB GUI tools (TablePlus, DBeaver, etc.)
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-jobmate} -d ${POSTGRES_DB:-jobmate}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - internal_network
+
+  # ─────────────────────────────────────────────────────────────
+  # Redis 7 — Pub/Sub + Cache
+  # ─────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: jm_redis
+    ports:
+      - "6379:6379" # Exposed locally for debug (RedisInsight, etc.)
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - internal_network

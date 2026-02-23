@@ -1,0 +1,64 @@
+# Traefik Static Configuration — Production
+# Loaded once at Traefik startup (not hot-reloaded).
+# Dynamic config (routing rules) is handled via Docker labels in docker-compose.prod.yml.
+
+# ─────────────────────────────────────────────
+# Global
+# ─────────────────────────────────────────────
+global:
+  checkNewVersion: false
+  sendAnonymousUsage: false
+
+# ─────────────────────────────────────────────
+# Entrypoints
+# ─────────────────────────────────────────────
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+          permanent: true
+
+  websecure:
+    address: ":443"
+    http:
+      tls:
+        certResolver: letsencrypt
+
+# ─────────────────────────────────────────────
+# Providers
+# ─────────────────────────────────────────────
+providers:
+  docker:
+    exposedByDefault: false
+    network: web_network # Only route containers on this network
+
+# ─────────────────────────────────────────────
+# Certificate Resolvers — Let's Encrypt (ACME)
+# ─────────────────────────────────────────────
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      # email set via CLI flag in docker-compose.prod.yml (${ACME_EMAIL})
+      storage: /certs/acme.json
+      tlsChallenge: {}
+      # httpChallenge:          # Alternative: use HTTP-01 if port 443 is blocked
+      #   entryPoint: web
+
+# ─────────────────────────────────────────────
+# Logging
+# ─────────────────────────────────────────────
+log:
+  level: INFO
+
+accessLog: {}
+
+# ─────────────────────────────────────────────
+# API / Dashboard (disabled in prod)
+# ─────────────────────────────────────────────
+api:
+  dashboard: false
+  insecure: false
