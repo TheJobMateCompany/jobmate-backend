@@ -298,16 +298,108 @@ export const resolvers = {
       return true;
     },
 
-    // ── Phase 2 stubs ─────────────────────────────────────
+    // ── approveJob (Phase 3) ───────────────────────────────
     approveJob: async (_parent, { jobFeedId }, context) => {
       requireAuth(context);
-      // Phase 2: update job_feed status, create application, publish CMD_ANALYZE_JOB
-      throw new GraphQLError('Not implemented yet — Phase 2.', { extensions: { code: 'NOT_IMPLEMENTED' } });
+      const { userId } = context.user;
+
+      // 1. Verify ownership — job must belong to the authenticated user via search_configs
+      const { rows: feedRows } = await query(
+        `SELECT jf.id, jf.status, jf.raw_data, jf.source_url, jf.created_at
+         FROM job_feed jf
+         JOIN search_configs sc ON sc.id = jf.search_config_id
+         WHERE jf.id = $1 AND sc.user_id = $2`,
+        [jobFeedId, userId]
+      );
+
+      if (feedRows.length === 0) {
+        throw new GraphQLError('Job not found or does not belong to you.', {
+          extensions: { code: 'NOT_FOUND' },
+        });
+      }
+
+      if (feedRows[0].status === 'APPROVED') {
+        throw new GraphQLError('Job is already approved.', {
+          extensions: { code: 'BAD_USER_INPUT' },
+        });
+      }
+
+      // 2. Update job_feed status to APPROVED
+      await query(
+        `UPDATE job_feed SET status = 'APPROVED' WHERE id = $1`,
+        [jobFeedId]
+      );
+
+      // 3. Insert application — ON CONFLICT keeps idempotent if called twice
+      const { rows: appRows } = await query(
+        `INSERT INTO applications (user_id, job_feed_id, current_status)
+         VALUES ($1, $2, 'TO_APPLY')
+         ON CONFLICT (user_id, job_feed_id) DO UPDATE
+           SET updated_at = NOW()
+         RETURNING id, current_status, ai_analysis, generated_cover_letter,
+                   user_notes, user_rating, history_log, created_at, updated_at`,
+        [userId, jobFeedId]
+      );
+
+      const app = appRows[0];
+
+      // 4. Publish CMD_ANALYZE_JOB → ai-coach-service via Redis
+      try {
+        await publish(
+          'CMD_ANALYZE_JOB',
+          JSON.stringify({ applicationId: app.id, userId })
+        );
+        console.log(`[approveJob] Published CMD_ANALYZE_JOB for application ${app.id}`);
+      } catch (err) {
+        // Non-fatal: analysis will be triggered on next retry mechanism
+        console.error('[approveJob] Failed to publish CMD_ANALYZE_JOB:', err.message);
+      }
+
+      // 5. Return Application shape
+      return {
+        id: app.id,
+        currentStatus: app.current_status,
+        aiAnalysis: app.ai_analysis,
+        generatedCoverLetter: app.generated_cover_letter,
+        userNotes: app.user_notes,
+        userRating: app.user_rating,
+        historyLog: app.history_log,
+        createdAt: app.created_at,
+        updatedAt: app.updated_at,
+      };
     },
 
+    // ── rejectJob (Phase 3) ────────────────────────────────
     rejectJob: async (_parent, { jobFeedId }, context) => {
       requireAuth(context);
-      throw new GraphQLError('Not implemented yet — Phase 2.', { extensions: { code: 'NOT_IMPLEMENTED' } });
+      const { userId } = context.user;
+
+      // Verify ownership + update in one round-trip
+      const { rows } = await query(
+        `UPDATE job_feed jf
+         SET status = 'REJECTED'
+         FROM search_configs sc
+         WHERE jf.id = $1
+           AND jf.search_config_id = sc.id
+           AND sc.user_id = $2
+         RETURNING jf.id, jf.raw_data, jf.source_url, jf.status, jf.created_at`,
+        [jobFeedId, userId]
+      );
+
+      if (rows.length === 0) {
+        throw new GraphQLError('Job not found or does not belong to you.', {
+          extensions: { code: 'NOT_FOUND' },
+        });
+      }
+
+      const r = rows[0];
+      return {
+        id: r.id,
+        rawData: r.raw_data,
+        sourceUrl: r.source_url,
+        status: r.status,
+        createdAt: r.created_at,
+      };
     },
 
     // ── Phase 4 stubs ─────────────────────────────────────

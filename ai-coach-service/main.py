@@ -1,20 +1,32 @@
 """
-jobmate-ai-coach-service — Stub placeholder
+jobmate-ai-coach-service — Phase 3
 
-TODO:
-  - Subscribe to Redis channel `CMD_ANALYZE_JOB`
-  - On message: fetch application from PostgreSQL, run MatchScore + LLM generation
-  - Write ai_analysis + generated_cover_letter back to applications table
-  - Publish `EVENT_ANALYSIS_DONE` to Redis for the Gateway to forward via SSE
+Startup sequence:
+  1. Validate required environment variables (config.py — fail-fast)
+  2. Open asyncpg connection pool (database.py)
+  3. Open Redis async connection (redis_consumer.py)
+  4. Spawn CMD_ANALYZE_JOB subscriber as a background task (redis_consumer.py)
+  5. Expose /health endpoint
+
+On CMD_ANALYZE_JOB:
+  - Fetch application + job_feed + profile from PostgreSQL
+  - Run MatchScore (keyword matching, deterministic)
+  - Call OpenRouter LLM for Pros/Cons, Cover Letter, CV suggestions
+  - Write ai_analysis + generated_cover_letter back to applications
+  - Publish EVENT_ANALYSIS_DONE for the Gateway SSE stream
 """
 
 import asyncio
 import logging
-import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-import uvicorn
+
+# config import is the fail-fast check — raises RuntimeError if any required
+# env var is missing, which prevents the service from starting with bad config.
+from config import AI_COACH_PORT, SERVICE_VERSION
+import database
+import redis_consumer
 
 logging.basicConfig(
     level=logging.INFO,
@@ -23,41 +35,61 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-async def redis_listener():
-    """
-    Long-running coroutine that consumes CMD_ANALYZE_JOB events from Redis Pub/Sub.
-    Placeholder: logs the channel subscription and waits.
-    """
-    redis_url = os.getenv("REDIS_URL", "redis://redis:6379")
-    logger.info(f"Redis listener starting — connecting to {redis_url}")
-    # TODO: import redis.asyncio as aioredis
-    #       async with aioredis.from_url(redis_url) as r:
-    #           pubsub = r.pubsub()
-    #           await pubsub.subscribe("CMD_ANALYZE_JOB")
-    #           async for message in pubsub.listen():
-    #               await handle_analyze_job(message)
-    logger.info("Redis listener stub active (no-op).")
-    while True:
-        await asyncio.sleep(60)
-
-
 @asynccontextmanager
 async def lifespan(application: FastAPI):
-    task = asyncio.create_task(redis_listener())
+    # ── Startup ───────────────────────────────────────────────────────────────
+    logger.info("ai-coach-service %s starting…", SERVICE_VERSION)
+
+    await database.create_pool()
+
+    rdb = await redis_consumer.create_redis_client()
+
+    consumer_task = asyncio.create_task(
+        redis_consumer.start(rdb),
+        name="redis-consumer",
+    )
+    logger.info("ai-coach-service ready ✓")
+
     yield
-    task.cancel()
+
+    # ── Shutdown ──────────────────────────────────────────────────────────────
+    logger.info("ai-coach-service shutting down…")
+    consumer_task.cancel()
     try:
-        await task
+        await consumer_task
     except asyncio.CancelledError:
         pass
 
+    await database.close_pool()
+    await rdb.aclose()
+    logger.info("ai-coach-service stopped.")
 
-app = FastAPI(title="jobmate-ai-coach-service", version="0.1.0", lifespan=lifespan)
+
+app = FastAPI(
+    title="jobmate-ai-coach-service",
+    version=SERVICE_VERSION,
+    lifespan=lifespan,
+)
 
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "service": "ai-coach-service", "version": "0.1.0"}
+    return {
+        "status": "ok",
+        "service": "ai-coach-service",
+        "version": SERVICE_VERSION,
+    }
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=int(AI_COACH_PORT),
+        log_level="info",
+    )
 
 
 if __name__ == "__main__":

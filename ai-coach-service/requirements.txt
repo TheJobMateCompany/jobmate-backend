@@ -15,7 +15,10 @@ uvicorn[standard]==0.30.6
 spacy==3.7.6
 
 # ─── LLM ───────────────────────────────────────────────────────
-# OpenAI SDK (supports Anthropic-compatible providers via base_url)
+# OpenAI SDK — used with OpenRouter (OpenAI-compatible API)
+# Provider: OpenRouter  →  https://openrouter.ai
+# Model:    meta-llama/llama-3.3-70b-instruct
+# Config:   base_url=https://openrouter.ai/api/v1  api_key=$OPENROUTER_API_KEY
 openai==1.47.0
 
 # ─── Utilities ─────────────────────────────────────────────────

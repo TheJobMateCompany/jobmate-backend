@@ -121,7 +121,9 @@ CREATE TABLE IF NOT EXISTS applications (
   history_log             JSONB NOT NULL DEFAULT '[]',
   -- Structure: [{ "from": "TO_APPLY", "to": "APPLIED", "at": "2026-01-01T10:00:00Z" }]
   created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  -- One application per user per job feed item
+  UNIQUE (user_id, job_feed_id)
 );
 
 -- ─────────────────────────────────────────────────────────────
