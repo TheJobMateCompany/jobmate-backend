@@ -1,6 +1,6 @@
 # ─── Stage: Development ────────────────────────────────────────
 # Uses 'air' for live-reload in dev (https://github.com/air-verse/air)
-FROM golang:1.24-alpine AS development
+FROM golang:1.25-alpine AS development
 WORKDIR /app
 RUN go install github.com/air-verse/air@latest
 COPY go.mod go.sum* ./
@@ -10,7 +10,7 @@ CMD ["air", "-c", ".air.toml"]
 
 # ─── Stage: Builder ────────────────────────────────────────────
 # Produces a statically-linked binary (~10 MB)
-FROM golang:1.24-alpine AS builder
+FROM golang:1.25-alpine AS builder
 WORKDIR /app
 COPY go.mod go.sum* ./
 RUN go mod download

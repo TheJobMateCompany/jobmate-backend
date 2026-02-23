@@ -1,5 +1,5 @@
 # ─── Stage: Development ────────────────────────────────────────
-FROM golang:1.24-alpine AS development
+FROM golang:1.25-alpine AS development
 WORKDIR /app
 RUN go install github.com/air-verse/air@latest
 COPY go.mod go.sum* ./
@@ -8,7 +8,7 @@ COPY . .
 CMD ["air", "-c", ".air.toml"]
 
 # ─── Stage: Builder ────────────────────────────────────────────
-FROM golang:1.24-alpine AS builder
+FROM golang:1.25-alpine AS builder
 WORKDIR /app
 COPY go.mod go.sum* ./
 RUN go mod download
