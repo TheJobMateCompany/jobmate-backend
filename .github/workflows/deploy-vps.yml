@@ -66,6 +66,20 @@ jobs:
         with:
           go-version: "1.25"
 
+      # ── Validate proto files ───────────────────────────────
+      - name: Install protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          version: "29.3"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Validate proto syntax
+        run: |
+          protoc --proto_path=proto \
+            --descriptor_set_out=/dev/null \
+            proto/tracker.proto \
+            proto/user.proto
+
       - name: Lint & test discovery-service
         working-directory: ./discovery-service
         run: |

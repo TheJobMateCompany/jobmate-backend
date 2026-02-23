@@ -1,0 +1,80 @@
+syntax = "proto3";
+
+package tracker;
+
+option go_package = "jobmate/tracker-service/internal/pb;pb";
+
+import "google/protobuf/timestamp.proto";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TrackerService — Kanban CRM for job applications
+//
+// All RPCs require the caller to pass the authenticated user's ID via gRPC
+// metadata key "x-user-id". The Gateway injects this after JWT validation.
+// ─────────────────────────────────────────────────────────────────────────────
+service TrackerService {
+  // List all applications for the authenticated user.
+  rpc ListApplications(ListApplicationsRequest) returns (ListApplicationsResponse);
+
+  // Move a Kanban card to a new status (state machine validated).
+  rpc MoveCard(MoveCardRequest) returns (ApplicationProto);
+
+  // Add or update the free-text note on an application.
+  rpc AddNote(AddNoteRequest) returns (ApplicationProto);
+
+  // Set a 1–5 star rating on an application.
+  rpc RateApplication(RateApplicationRequest) returns (ApplicationProto);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Requests
+// ─────────────────────────────────────────────────────────────────────────────
+
+message ListApplicationsRequest {}
+
+message MoveCardRequest {
+  string application_id = 1;
+  // Target status — must be a valid ApplicationStatus string.
+  // Valid values: TO_APPLY, APPLIED, INTERVIEW, OFFER, REJECTED, HIRED
+  string new_status = 2;
+}
+
+message AddNoteRequest {
+  string application_id = 1;
+  string note           = 2;
+}
+
+message RateApplicationRequest {
+  string application_id = 1;
+  int32  rating         = 2; // 1–5
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Responses
+// ─────────────────────────────────────────────────────────────────────────────
+
+message ListApplicationsResponse {
+  repeated ApplicationProto applications = 1;
+}
+
+// ApplicationProto mirrors the Applications table row returned to clients.
+// JSON blobs (ai_analysis, history_log) are carried as raw bytes so the
+// Gateway can forward them to the frontend without an extra parse/marshal cycle.
+message ApplicationProto {
+  string id             = 1;
+  string current_status = 2;
+
+  // Raw JSON bytes — forwarded as-is to GraphQL clients.
+  bytes ai_analysis = 3;
+  bytes history_log = 7;
+
+  // Nullable string fields (empty string = NULL in DB)
+  string generated_cover_letter = 4;
+  string user_notes             = 5;
+
+  // Nullable int32 — 0 means unrated
+  int32 user_rating = 6;
+
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
+}

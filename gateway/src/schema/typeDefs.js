@@ -14,6 +14,9 @@ export const typeDefs = `#graphql
   # Arbitrary JSON blob (skills, experience, etc.)
   scalar JSON
 
+  # File upload (graphql-multipart-request-spec)
+  scalar Upload
+
   # ────────────────────────────────────────────────
   # Core Types
   # ────────────────────────────────────────────────
@@ -38,6 +41,11 @@ export const typeDefs = `#graphql
   type AuthPayload {
     token: String!
     user: User!
+  }
+
+  type CVUploadResult {
+    cvUrl: String!
+    message: String!
   }
 
   # ────────────────────────────────────────────────
@@ -183,6 +191,9 @@ export const typeDefs = `#graphql
     createSearchConfig(input: CreateSearchConfigInput!): SearchConfig!
     updateSearchConfig(id: ID!, input: UpdateSearchConfigInput!): SearchConfig!
     deleteSearchConfig(id: ID!): Boolean!
+
+    # ── CV Upload ─────────────────────────────
+    uploadCV(file: Upload!): CVUploadResult!
 
     # ── Job Feed (Phase 2) ─────────────────────
     approveJob(jobFeedId: ID!): Application!

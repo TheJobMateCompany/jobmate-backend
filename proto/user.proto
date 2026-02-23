@@ -1,0 +1,95 @@
+syntax = "proto3";
+
+package user;
+
+// No go_package — user-service is Node.js; proto is loaded dynamically via @grpc/proto-loader.
+// The Gateway also loads this file dynamically at startup.
+
+import "google/protobuf/timestamp.proto";
+
+// ─────────────────────────────────────────────────────────────
+// Service definition
+// ─────────────────────────────────────────────────────────────
+
+service UserService {
+  // SearchConfig CRUD — x-user-id forwarded via gRPC metadata
+  rpc GetSearchConfigs(GetSearchConfigsRequest)   returns (GetSearchConfigsResponse);
+  rpc CreateSearchConfig(CreateSearchConfigRequest) returns (SearchConfigProto);
+  rpc UpdateSearchConfig(UpdateSearchConfigRequest) returns (SearchConfigProto);
+  rpc DeleteSearchConfig(DeleteSearchConfigRequest) returns (DeleteSearchConfigResponse);
+
+  // CV upload — file bytes sent as a single unary call (≤ 10 MB)
+  rpc UploadCV(UploadCVRequest) returns (UploadCVResponse);
+}
+
+// ─────────────────────────────────────────────────────────────
+// SearchConfig messages
+// ─────────────────────────────────────────────────────────────
+
+message GetSearchConfigsRequest {}
+
+message GetSearchConfigsResponse {
+  repeated SearchConfigProto configs = 1;
+}
+
+message CreateSearchConfigRequest {
+  repeated string job_titles    = 1;  // required, min 1
+  repeated string locations     = 2;  // required, min 1
+  string          remote_policy = 3;  // REMOTE | HYBRID | ON_SITE (default: HYBRID)
+  repeated string keywords      = 4;
+  repeated string red_flags     = 5;
+  int32           salary_min    = 6;  // 0 = unset
+  int32           salary_max    = 7;  // 0 = unset
+}
+
+message UpdateSearchConfigRequest {
+  string          id            = 1;  // required
+  repeated string job_titles    = 2;  // omit = keep current
+  repeated string locations     = 3;
+  string          remote_policy = 4;
+  repeated string keywords      = 5;
+  repeated string red_flags     = 6;
+  int32           salary_min    = 7;
+  int32           salary_max    = 8;
+}
+
+message DeleteSearchConfigRequest {
+  string id = 1;  // required
+}
+
+message DeleteSearchConfigResponse {
+  bool success = 1;
+}
+
+// ─────────────────────────────────────────────────────────────
+// CV upload messages
+// ─────────────────────────────────────────────────────────────
+
+message UploadCVRequest {
+  bytes  file_bytes = 1;  // raw file content (≤ 10 MB)
+  string file_name  = 2;  // original filename, e.g. "resume.pdf"
+  string mime_type  = 3;  // must be "application/pdf"
+}
+
+message UploadCVResponse {
+  string cv_url  = 1;  // relative path, e.g. "/uploads/1234-abc.pdf"
+  string message = 2;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Shared type
+// ─────────────────────────────────────────────────────────────
+
+message SearchConfigProto {
+  string id            = 1;
+  repeated string job_titles    = 2;
+  repeated string locations     = 3;
+  string remote_policy          = 4;
+  repeated string keywords      = 5;
+  repeated string red_flags     = 6;
+  int32  salary_min             = 7;
+  int32  salary_max             = 8;
+  bool   is_active              = 9;
+  google.protobuf.Timestamp created_at = 10;
+  google.protobuf.Timestamp updated_at = 11;
+}

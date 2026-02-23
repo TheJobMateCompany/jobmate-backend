@@ -8,71 +8,21 @@
 import bcrypt from 'bcrypt';
 import { GraphQLError } from 'graphql';
 import { GraphQLJSON } from 'graphql-scalars';
+import GraphQLUpload from 'graphql-upload/GraphQLUpload.mjs';
 import { query } from '../lib/db.js';
 import { publish } from '../lib/redis.js';
 import { signToken, requireAuth } from '../middleware/auth.js';
+import * as trackerClient from '../lib/trackerGrpc.js';
+import * as userClient from '../lib/userGrpc.js';
 
 const BCRYPT_ROUNDS = 12;
 
-/** Base URL for user-service internal calls */
-const USER_SERVICE_URL = process.env.USER_SERVICE_URL || 'http://user-service:4001';
-
-/** Base URL for tracker-service internal calls */
-const TRACKER_SERVICE_URL = process.env.TRACKER_SERVICE_URL || 'http://tracker-service:8082';
-
-/**
- * Internal HTTP helper — calls user-service REST API.
- * Forwards the authenticated userId via x-user-id header.
- */
-async function userServiceFetch(path, { userId, method = 'GET', body } = {}) {
-  const res = await fetch(`${USER_SERVICE_URL}${path}`, {
-    method,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(userId ? { 'x-user-id': userId } : {}),
-    },
-    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
-  });
-
-  const contentType = res.headers.get('content-type') || '';
-  const payload = contentType.includes('application/json') ? await res.json() : null;
-
-  if (!res.ok) {
-    const msg = payload?.error || `user-service responded with ${res.status}`;
-    throw new GraphQLError(msg, { extensions: { code: res.status === 404 ? 'NOT_FOUND' : 'INTERNAL_SERVER_ERROR' } });
-  }
-
-  return payload;
-}
-
-/**
- * Internal HTTP helper — calls tracker-service REST API.
- * Forwards the authenticated userId via x-user-id header.
- */
-async function trackerServiceFetch(path, { userId, method = 'GET', body } = {}) {
-  const res = await fetch(`${TRACKER_SERVICE_URL}${path}`, {
-    method,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(userId ? { 'x-user-id': userId } : {}),
-    },
-    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
-  });
-
-  const contentType = res.headers.get('content-type') || '';
-  const payload = contentType.includes('application/json') ? await res.json() : null;
-
-  if (!res.ok) {
-    const msg = payload?.error || `tracker-service responded with ${res.status}`;
-    throw new GraphQLError(msg, { extensions: { code: res.status === 404 ? 'NOT_FOUND' : 'INTERNAL_SERVER_ERROR' } });
-  }
-
-  return payload;
-}
+// All service communication is now via gRPC.
+// tracker-service → ../lib/trackerGrpc.js (port 9082)
+// user-service    → ../lib/userGrpc.js    (port 9081)
 
 // ────────────────────────────────────────────────────────────
 // Helpers
-// ────────────────────────────────────────────────────────────
 
 /** Fetch a user + profile by user ID */
 const getUserById = async (userId) => {
@@ -111,6 +61,9 @@ const rowToUser = (row) => ({
 // ────────────────────────────────────────────────────────────
 
 export const resolvers = {
+  // File upload scalar — implements graphql-multipart-request-spec
+  Upload: GraphQLUpload,
+
   // Custom scalar
   JSON: GraphQLJSON,
 
@@ -128,7 +81,7 @@ export const resolvers = {
     // Phase 1 — SearchConfig
     mySearchConfigs: async (_parent, _args, context) => {
       requireAuth(context);
-      return userServiceFetch('/search-configs', { userId: context.user.userId });
+      return userClient.getSearchConfigs(context.user.userId);
     },
 
     // Phase 2 — JobFeed (implemented)
@@ -161,9 +114,7 @@ export const resolvers = {
     // Phase 4 — Applications
     myApplications: async (_parent, _args, context) => {
       requireAuth(context);
-      const data = await trackerServiceFetch('/applications', { userId: context.user.userId });
-      // tracker-service returns camelCase already
-      return data;
+      return trackerClient.listApplications(context.user.userId);
     },
   },
 
@@ -303,29 +254,45 @@ export const resolvers = {
     // ── SearchConfig (Phase 1) ─────────────────────────────
     createSearchConfig: async (_parent, { input }, context) => {
       requireAuth(context);
-      return userServiceFetch('/search-configs', {
-        userId: context.user.userId,
-        method: 'POST',
-        body: input,
-      });
+      return userClient.createSearchConfig(context.user.userId, input);
     },
 
     updateSearchConfig: async (_parent, { id, input }, context) => {
       requireAuth(context);
-      return userServiceFetch(`/search-configs/${id}`, {
-        userId: context.user.userId,
-        method: 'PUT',
-        body: input,
-      });
+      return userClient.updateSearchConfig(context.user.userId, id, input);
     },
 
     deleteSearchConfig: async (_parent, { id }, context) => {
       requireAuth(context);
-      await userServiceFetch(`/search-configs/${id}`, {
-        userId: context.user.userId,
-        method: 'DELETE',
-      });
-      return true;
+      const result = await userClient.deleteSearchConfig(context.user.userId, id);
+      return result.success ?? true;
+    },
+
+    // ── uploadCV ──────────────────────────────────────────
+    uploadCV: async (_parent, { file }, context) => {
+      requireAuth(context);
+
+      const { createReadStream, filename, mimetype } = await file;
+
+      if (mimetype !== 'application/pdf') {
+        throw new GraphQLError('Only PDF files are accepted.', {
+          extensions: { code: 'BAD_USER_INPUT' },
+        });
+      }
+
+      // Stream → Buffer
+      const stream = createReadStream();
+      const chunks = [];
+      for await (const chunk of stream) chunks.push(chunk);
+      const buffer = Buffer.concat(chunks);
+
+      if (buffer.length > 10 * 1024 * 1024) {
+        throw new GraphQLError('File too large (max 10 MB).', {
+          extensions: { code: 'BAD_USER_INPUT' },
+        });
+      }
+
+      return userClient.uploadCV(context.user.userId, buffer, filename, mimetype);
     },
 
     // ── approveJob (Phase 3) ───────────────────────────────
@@ -432,29 +399,17 @@ export const resolvers = {
     // ── Phase 4 ────────────────────────────────────────────
     moveCard: async (_parent, { applicationId, newStatus }, context) => {
       requireAuth(context);
-      return trackerServiceFetch(`/applications/${applicationId}/move`, {
-        userId: context.user.userId,
-        method: 'POST',
-        body: { newStatus },
-      });
+      return trackerClient.moveCard(context.user.userId, applicationId, newStatus);
     },
 
     addNote: async (_parent, { applicationId, note }, context) => {
       requireAuth(context);
-      return trackerServiceFetch(`/applications/${applicationId}/note`, {
-        userId: context.user.userId,
-        method: 'POST',
-        body: { note },
-      });
+      return trackerClient.addNote(context.user.userId, applicationId, note);
     },
 
     rateApplication: async (_parent, { applicationId, rating }, context) => {
       requireAuth(context);
-      return trackerServiceFetch(`/applications/${applicationId}/rate`, {
-        userId: context.user.userId,
-        method: 'POST',
-        body: { rating },
-      });
+      return trackerClient.rateApplication(context.user.userId, applicationId, rating);
     },
   },
 };

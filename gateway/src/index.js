@@ -12,6 +12,7 @@ import express from 'express';
 import cors from 'cors';
 import bodyParser from 'body-parser';
 import rateLimit from 'express-rate-limit';
+import graphqlUploadExpress from 'graphql-upload/graphqlUploadExpress.mjs';
 import { ApolloServer } from '@apollo/server';
 import { expressMiddleware } from '@apollo/server/express4';
 import jwt from 'jsonwebtoken';
@@ -76,6 +77,9 @@ app.get('/health', (_req, res) => {
 app.use(
   '/graphql',
   graphqlLimiter,
+  // Must come before bodyParser — intercepts multipart/form-data for file uploads
+  // and converts them to standard GraphQL operations (graphql-multipart-request-spec)
+  graphqlUploadExpress({ maxFileSize: 10 * 1024 * 1024, maxFiles: 1 }),
   bodyParser.json(),
   expressMiddleware(apollo, {
     context: buildContext,

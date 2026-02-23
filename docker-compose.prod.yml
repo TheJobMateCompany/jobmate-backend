@@ -51,6 +51,9 @@ services:
     image: ghcr.io/${GHCR_ORG}/jobmate-gateway:${IMAGE_TAG:-latest}
     container_name: jm_gateway
     env_file: .env
+    environment:
+      - TRACKER_GRPC_ADDR=tracker-service:9082
+      - USER_GRPC_ADDR=user-service:9081
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=jobmate-backend_web_network"
@@ -88,6 +91,8 @@ services:
     image: ghcr.io/${GHCR_ORG}/jobmate-user-service:${IMAGE_TAG:-latest}
     container_name: jm_user_service
     env_file: .env
+    environment:
+      - USER_GRPC_PORT=9081
     deploy:
       resources:
         limits:
@@ -152,6 +157,8 @@ services:
     image: ghcr.io/${GHCR_ORG}/jobmate-tracker-service:${IMAGE_TAG:-latest}
     container_name: jm_tracker
     env_file: .env
+    environment:
+      - TRACKER_GRPC_PORT=9082
     deploy:
       resources:
         limits:
