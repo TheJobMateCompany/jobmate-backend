@@ -17,6 +17,9 @@ const BCRYPT_ROUNDS = 12;
 /** Base URL for user-service internal calls */
 const USER_SERVICE_URL = process.env.USER_SERVICE_URL || 'http://user-service:4001';
 
+/** Base URL for tracker-service internal calls */
+const TRACKER_SERVICE_URL = process.env.TRACKER_SERVICE_URL || 'http://tracker-service:8082';
+
 /**
  * Internal HTTP helper — calls user-service REST API.
  * Forwards the authenticated userId via x-user-id header.
@@ -36,6 +39,31 @@ async function userServiceFetch(path, { userId, method = 'GET', body } = {}) {
 
   if (!res.ok) {
     const msg = payload?.error || `user-service responded with ${res.status}`;
+    throw new GraphQLError(msg, { extensions: { code: res.status === 404 ? 'NOT_FOUND' : 'INTERNAL_SERVER_ERROR' } });
+  }
+
+  return payload;
+}
+
+/**
+ * Internal HTTP helper — calls tracker-service REST API.
+ * Forwards the authenticated userId via x-user-id header.
+ */
+async function trackerServiceFetch(path, { userId, method = 'GET', body } = {}) {
+  const res = await fetch(`${TRACKER_SERVICE_URL}${path}`, {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(userId ? { 'x-user-id': userId } : {}),
+    },
+    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+  });
+
+  const contentType = res.headers.get('content-type') || '';
+  const payload = contentType.includes('application/json') ? await res.json() : null;
+
+  if (!res.ok) {
+    const msg = payload?.error || `tracker-service responded with ${res.status}`;
     throw new GraphQLError(msg, { extensions: { code: res.status === 404 ? 'NOT_FOUND' : 'INTERNAL_SERVER_ERROR' } });
   }
 
@@ -130,10 +158,12 @@ export const resolvers = {
       }));
     },
 
-    // Phase 4 — stub
+    // Phase 4 — Applications
     myApplications: async (_parent, _args, context) => {
       requireAuth(context);
-      throw new GraphQLError('Not implemented yet — Phase 4.', { extensions: { code: 'NOT_IMPLEMENTED' } });
+      const data = await trackerServiceFetch('/applications', { userId: context.user.userId });
+      // tracker-service returns camelCase already
+      return data;
     },
   },
 
@@ -402,20 +432,32 @@ export const resolvers = {
       };
     },
 
-    // ── Phase 4 stubs ─────────────────────────────────────
-    moveCard: async (_parent, _args, context) => {
+    // ── Phase 4 ────────────────────────────────────────────
+    moveCard: async (_parent, { applicationId, newStatus }, context) => {
       requireAuth(context);
-      throw new GraphQLError('Not implemented yet — Phase 4.', { extensions: { code: 'NOT_IMPLEMENTED' } });
+      return trackerServiceFetch(`/applications/${applicationId}/move`, {
+        userId: context.user.userId,
+        method: 'POST',
+        body: { newStatus },
+      });
     },
 
-    addNote: async (_parent, _args, context) => {
+    addNote: async (_parent, { applicationId, note }, context) => {
       requireAuth(context);
-      throw new GraphQLError('Not implemented yet — Phase 4.', { extensions: { code: 'NOT_IMPLEMENTED' } });
+      return trackerServiceFetch(`/applications/${applicationId}/note`, {
+        userId: context.user.userId,
+        method: 'POST',
+        body: { note },
+      });
     },
 
-    rateApplication: async (_parent, _args, context) => {
+    rateApplication: async (_parent, { applicationId, rating }, context) => {
       requireAuth(context);
-      throw new GraphQLError('Not implemented yet — Phase 4.', { extensions: { code: 'NOT_IMPLEMENTED' } });
+      return trackerServiceFetch(`/applications/${applicationId}/rate`, {
+        userId: context.user.userId,
+        method: 'POST',
+        body: { rating },
+      });
     },
   },
 };
