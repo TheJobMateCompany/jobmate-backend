@@ -20,6 +20,8 @@ WORKDIR /app
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json
 COPY src ./src
+# Create uploads dir as root, then give ownership to the node user
+RUN mkdir -p /app/uploads && chown -R node:node /app/uploads
 EXPOSE 4001
 USER node
 CMD ["node", "src/index.js"]
