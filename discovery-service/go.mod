@@ -1,3 +1,3 @@
 module jobmate/discovery-service
 
-go 1.23
+go 1.24
