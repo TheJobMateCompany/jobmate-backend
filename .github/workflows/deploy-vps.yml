@@ -27,22 +27,30 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: "npm"
-          cache-dependency-path: |
-            gateway/package-lock.json
-            user-service/package-lock.json
+          # No built-in cache here — managed manually below to avoid
+          # "paths not resolved" errors when package-lock.json doesn't exist yet.
+
+      - name: Cache npm dependencies
+        uses: actions/cache@v4
+        # hashFiles returns an empty string (no-op) if no lock files exist — safe.
+        if: hashFiles('gateway/package-lock.json', 'user-service/package-lock.json') != ''
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('gateway/package-lock.json', 'user-service/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
 
       - name: Install & lint gateway
         working-directory: ./gateway
         run: |
-          npm install --if-present
+          npm install
           npm run lint --if-present
           npm test --if-present
 
       - name: Install & lint user-service
         working-directory: ./user-service
         run: |
-          npm install --if-present
+          npm install
           npm run lint --if-present
           npm test --if-present
 
