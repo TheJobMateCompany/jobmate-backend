@@ -13,7 +13,10 @@ CMD ["node", "--watch", "src/index.js"]
 
 # ─── Stage: Builder ────────────────────────────────────────────
 FROM base AS builder
-RUN npm ci --only=production
+# --omit=dev works with or without a lock file.
+# mkdir -p guarantees node_modules exists even when there are zero dependencies,
+# preventing "path not found" errors in the COPY --from=builder step below.
+RUN npm install --omit=dev && mkdir -p node_modules
 
 # ─── Stage: Production ─────────────────────────────────────────
 FROM node:20-alpine AS production

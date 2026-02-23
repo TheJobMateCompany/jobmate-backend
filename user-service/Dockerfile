@@ -12,7 +12,7 @@ CMD ["node", "--watch", "src/index.js"]
 
 # ─── Stage: Builder ────────────────────────────────────────────
 FROM base AS builder
-RUN npm ci --only=production
+RUN npm install --omit=dev && mkdir -p node_modules
 
 # ─── Stage: Production ─────────────────────────────────────────
 FROM node:20-alpine AS production
