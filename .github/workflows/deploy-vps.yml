@@ -180,12 +180,12 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          port: 22
+          port: ${{ secrets.VPS_SSH_PORT || 22 }}
           script: |
             set -e  # Exit immediately on error
 
             echo "→ Navigating to project directory..."
-            cd ~/jobmate-backend
+            cd /opt/jobmate/jobmate-backend
 
             echo "→ Pulling latest code..."
             git pull origin main
