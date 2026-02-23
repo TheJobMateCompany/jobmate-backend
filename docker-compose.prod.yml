@@ -165,7 +165,7 @@ services:
     container_name: jm_postgres
     env_file: .env
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql        # PG18+: parent dir, PG manages the versioned subdir
       - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     deploy:
       resources:
