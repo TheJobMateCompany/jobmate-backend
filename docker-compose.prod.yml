@@ -53,6 +53,7 @@ services:
     env_file: .env
     labels:
       - "traefik.enable=true"
+      - "traefik.docker.network=jobmate-backend_web_network"
       - "traefik.http.routers.gateway.rule=Host(`${DOMAIN_NAME}`)"
       - "traefik.http.routers.gateway.entrypoints=websecure"
       - "traefik.http.routers.gateway.tls.certresolver=letsencrypt"
@@ -64,9 +65,17 @@ services:
           cpus: "0.50"
         reservations:
           memory: 128M
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:4000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - web_network
