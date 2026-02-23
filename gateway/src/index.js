@@ -1,50 +1,138 @@
 /**
- * jobmate-gateway — Stub placeholder
+ * jobmate-gateway — Main entry point
  *
- * TODO: Replace with Apollo Server (GraphQL) + SSE endpoint.
- * This stub validates that the Docker / network stack is working end-to-end.
+ * Stack:
+ *  - Express (HTTP server + middleware)
+ *  - Apollo Server v4 (GraphQL at POST /graphql)
+ *  - SSE (GET /events) — authenticated via ?token=<jwt>
+ *  - Redis subscriber — pushes AI events to SSE clients
  */
 
-'use strict';
+import express from 'express';
+import cors from 'cors';
+import bodyParser from 'body-parser';
+import { ApolloServer } from '@apollo/server';
+import { expressMiddleware } from '@apollo/server/express4';
+import jwt from 'jsonwebtoken';
 
-const http = require('http');
+import { typeDefs } from './schema/typeDefs.js';
+import { resolvers } from './schema/resolvers.js';
+import { buildContext } from './middleware/auth.js';
+import { sseManager } from './sse/manager.js';
+import { subscriber } from './lib/redis.js';
 
 const PORT = process.env.PORT || 4000;
 
-const router = (req, res) => {
-  // Health check (used by Traefik and CI smoke tests)
-  if (req.url === '/health') {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    return res.end(JSON.stringify({ status: 'ok', service: 'gateway', version: '0.1.0' }));
+// ─────────────────────────────────────────────────────────────
+// Apollo Server
+// ─────────────────────────────────────────────────────────────
+const apollo = new ApolloServer({
+  typeDefs,
+  resolvers,
+  formatError: (formattedError, error) => {
+    console.error('[graphql] Error:', formattedError.message);
+    return formattedError;
+  },
+});
+
+await apollo.start();
+console.log('[gateway] Apollo Server started.');
+
+// ─────────────────────────────────────────────────────────────
+// Express App
+// ─────────────────────────────────────────────────────────────
+const app = express();
+
+app.use(cors({
+  origin: process.env.CORS_ORIGIN || '*',
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
+
+// ── Health check (public) ──────────────────────────────────
+app.get('/health', (_req, res) => {
+  res.json({ status: 'ok', service: 'gateway', version: '0.1.0' });
+});
+
+// ── GraphQL endpoint ───────────────────────────────────────
+app.use(
+  '/graphql',
+  bodyParser.json(),
+  expressMiddleware(apollo, {
+    context: buildContext,
+  })
+);
+
+// ── SSE endpoint ───────────────────────────────────────────
+// Browser EventSource cannot send custom headers, so the JWT is
+// accepted as a query parameter: GET /events?token=<jwt>
+app.get('/events', (req, res) => {
+  const token = req.query.token;
+
+  if (!token) {
+    return res.status(401).json({ error: 'Missing token query parameter.' });
   }
 
-  // GraphQL placeholder
-  if (req.url === '/graphql') {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    return res.end(JSON.stringify({ data: null, message: 'GraphQL endpoint — coming soon' }));
+  let decoded;
+  try {
+    decoded = jwt.verify(token, process.env.JWT_SECRET);
+  } catch {
+    return res.status(401).json({ error: 'Invalid or expired token.' });
   }
 
-  // SSE placeholder
-  if (req.url === '/events') {
-    res.writeHead(200, {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
+  const userId = decoded.userId;
+
+  // SSE headers
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx/Traefik buffering
+  res.flushHeaders();
+
+  // Register connection
+  sseManager.add(userId, res);
+
+  // Keepalive ping every 25s to prevent proxy timeouts
+  const keepalive = setInterval(() => {
+    res.write(': ping\n\n');
+  }, 25_000);
+
+  // Cleanup on client disconnect
+  req.on('close', () => {
+    clearInterval(keepalive);
+    sseManager.remove(userId);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// Redis — Subscribe to internal events from other services
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * EVENT_ANALYSIS_DONE — published by AI Coach after processing an application.
+ * Payload: { applicationId, userId, analysis: { score, pros, cons, ... } }
+ */
+await subscriber.subscribe('EVENT_ANALYSIS_DONE', (raw) => {
+  try {
+    const payload = JSON.parse(raw);
+    console.log(`[redis] EVENT_ANALYSIS_DONE for user ${payload.userId}, application ${payload.applicationId}`);
+    sseManager.send(payload.userId, {
+      type: 'ANALYSIS_DONE',
+      applicationId: payload.applicationId,
     });
-    res.write('data: {"type":"connected","service":"gateway"}\n\n');
-    // Keep connection alive (client disconnects after testing)
-    const interval = setInterval(() => res.write(': ping\n\n'), 30_000);
-    req.on('close', () => clearInterval(interval));
-    return;
+  } catch (err) {
+    console.error('[redis] Failed to parse EVENT_ANALYSIS_DONE:', err.message);
   }
+});
 
-  res.writeHead(404, { 'Content-Type': 'application/json' });
-  res.end(JSON.stringify({ error: 'Not found' }));
-};
+console.log('[redis] Subscribed to: EVENT_ANALYSIS_DONE');
 
-const server = http.createServer(router);
-
-server.listen(PORT, () => {
+// ─────────────────────────────────────────────────────────────
+// Start HTTP Server
+// ─────────────────────────────────────────────────────────────
+app.listen(PORT, () => {
   console.log(`[gateway] Listening on port ${PORT}`);
-  console.log(`[gateway] Health: http://localhost:${PORT}/health`);
+  console.log(`[gateway] GraphQL: http://localhost:${PORT}/graphql`);
+  console.log(`[gateway] SSE:     http://localhost:${PORT}/events?token=<jwt>`);
+  console.log(`[gateway] Health:  http://localhost:${PORT}/health`);
 });
