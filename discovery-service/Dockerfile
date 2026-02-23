@@ -18,8 +18,12 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o discovery-service ./cmd/main.go
 
 # ─── Stage: Production ─────────────────────────────────────────
-# Distroless / scratch — no shell, minimal attack surface
-FROM scratch AS production
-COPY --from=builder /app/discovery-service /discovery-service
+# Use alpine (not scratch) — the discovery service makes HTTPS calls to
+# external APIs (Adzuna) and needs CA certificates.
+FROM alpine:3.21 AS production
+RUN apk add --no-cache ca-certificates tzdata
+WORKDIR /app
+COPY --from=builder /app/discovery-service ./discovery-service
 EXPOSE 8081
-ENTRYPOINT ["/discovery-service"]
+USER nobody
+ENTRYPOINT ["./discovery-service"]

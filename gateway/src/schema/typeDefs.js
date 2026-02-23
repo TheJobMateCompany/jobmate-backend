@@ -50,6 +50,7 @@ export const typeDefs = `#graphql
     locations: [String!]!
     remotePolicy: RemotePolicy!
     keywords: [String!]!
+    redFlags: [String!]!
     salaryMin: Int
     salaryMax: Int
     isActive: Boolean!
@@ -136,6 +137,7 @@ export const typeDefs = `#graphql
     locations: [String!]!
     remotePolicy: RemotePolicy
     keywords: [String!]
+    redFlags: [String!]
     salaryMin: Int
     salaryMax: Int
   }
@@ -145,6 +147,7 @@ export const typeDefs = `#graphql
     locations: [String!]
     remotePolicy: RemotePolicy
     keywords: [String!]
+    redFlags: [String!]
     salaryMin: Int
     salaryMax: Int
   }
@@ -160,7 +163,7 @@ export const typeDefs = `#graphql
     # Auth-required
     me: User!
     mySearchConfigs: [SearchConfig!]!               # Phase 1
-    jobFeed(status: JobStatus): [JobFeedItem!]!     # Phase 2
+    jobFeed(status: JobStatus): [JobFeedItem!]!     # Phase 2 ✓
     myApplications: [Application!]!                 # Phase 4
   }
 

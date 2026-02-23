@@ -18,7 +18,7 @@ router.get('/', async (req, res) => {
 
   try {
     const { rows } = await query(
-      `SELECT id, job_titles, locations, remote_policy, keywords, salary_min, salary_max, is_active, created_at, updated_at
+      `SELECT id, job_titles, locations, remote_policy, keywords, red_flags, salary_min, salary_max, is_active, created_at, updated_at
        FROM search_configs
        WHERE user_id = $1 AND is_active = true
        ORDER BY created_at DESC`,
@@ -37,7 +37,7 @@ router.post('/', async (req, res) => {
   const userId = req.headers['x-user-id'];
   if (!userId) return res.status(401).json({ error: 'Missing x-user-id header.' });
 
-  const { jobTitles, locations, remotePolicy, keywords, salaryMin, salaryMax } = req.body;
+  const { jobTitles, locations, remotePolicy, keywords, redFlags, salaryMin, salaryMax } = req.body;
 
   if (!jobTitles || !Array.isArray(jobTitles) || jobTitles.length === 0) {
     return res.status(400).json({ error: 'jobTitles[] is required.' });
@@ -49,16 +49,17 @@ router.post('/', async (req, res) => {
   try {
     const { rows } = await query(
       `INSERT INTO search_configs
-         (user_id, job_titles, locations, remote_policy, keywords, salary_min, salary_max)
+         (user_id, job_titles, locations, remote_policy, keywords, red_flags, salary_min, salary_max)
        VALUES
-         ($1, $2, $3, $4::remote_policy, $5, $6, $7)
-       RETURNING id, job_titles, locations, remote_policy, keywords, salary_min, salary_max, is_active, created_at, updated_at`,
+         ($1, $2, $3, $4::remote_policy, $5, $6, $7, $8)
+       RETURNING id, job_titles, locations, remote_policy, keywords, red_flags, salary_min, salary_max, is_active, created_at, updated_at`,
       [
         userId,
         jobTitles,
         locations,
         remotePolicy ?? 'HYBRID',
         keywords ?? [],
+        redFlags ?? [],
         salaryMin ?? null,
         salaryMax ?? null,
       ]
@@ -76,7 +77,7 @@ router.put('/:id', async (req, res) => {
   const userId = req.headers['x-user-id'];
   if (!userId) return res.status(401).json({ error: 'Missing x-user-id header.' });
 
-  const { jobTitles, locations, remotePolicy, keywords, salaryMin, salaryMax } = req.body;
+  const { jobTitles, locations, remotePolicy, keywords, redFlags, salaryMin, salaryMax } = req.body;
 
   try {
     const { rows } = await query(
@@ -85,16 +86,18 @@ router.put('/:id', async (req, res) => {
          locations     = COALESCE($2, locations),
          remote_policy = COALESCE($3::remote_policy, remote_policy),
          keywords      = COALESCE($4, keywords),
-         salary_min    = COALESCE($5, salary_min),
-         salary_max    = COALESCE($6, salary_max),
+         red_flags     = COALESCE($5, red_flags),
+         salary_min    = COALESCE($6, salary_min),
+         salary_max    = COALESCE($7, salary_max),
          updated_at    = NOW()
-       WHERE id = $7 AND user_id = $8
-       RETURNING id, job_titles, locations, remote_policy, keywords, salary_min, salary_max, is_active, created_at, updated_at`,
+       WHERE id = $8 AND user_id = $9
+       RETURNING id, job_titles, locations, remote_policy, keywords, red_flags, salary_min, salary_max, is_active, created_at, updated_at`,
       [
         jobTitles ?? null,
         locations ?? null,
         remotePolicy ?? null,
         keywords ?? null,
+        redFlags ?? null,
         salaryMin ?? null,
         salaryMax ?? null,
         req.params.id,
@@ -144,6 +147,7 @@ function mapRow(r) {
     locations: r.locations,
     remotePolicy: r.remote_policy,
     keywords: r.keywords,
+    redFlags: r.red_flags,
     salaryMin: r.salary_min,
     salaryMax: r.salary_max,
     isActive: r.is_active,

@@ -103,10 +103,31 @@ export const resolvers = {
       return userServiceFetch('/search-configs', { userId: context.user.userId });
     },
 
-    // Phase 2 — stub
-    jobFeed: async (_parent, _args, context) => {
+    // Phase 2 — JobFeed (implemented)
+    jobFeed: async (_parent, { status }, context) => {
       requireAuth(context);
-      throw new GraphQLError('Not implemented yet — Phase 2.', { extensions: { code: 'NOT_IMPLEMENTED' } });
+      const { userId } = context.user;
+
+      // Join through search_configs so users only see their own feed
+      const { rows } = await query(
+        `SELECT jf.id, jf.raw_data, jf.source_url, jf.status, jf.created_at
+         FROM job_feed jf
+         JOIN search_configs sc ON sc.id = jf.search_config_id
+         WHERE sc.user_id = $1
+           AND ($2::job_status IS NULL OR jf.status = $2::job_status)
+           AND jf.expires_at > NOW()
+         ORDER BY jf.created_at DESC
+         LIMIT 100`,
+        [userId, status ?? null]
+      );
+
+      return rows.map((r) => ({
+        id: r.id,
+        rawData: r.raw_data,
+        sourceUrl: r.source_url,
+        status: r.status,
+        createdAt: r.created_at,
+      }));
     },
 
     // Phase 4 — stub

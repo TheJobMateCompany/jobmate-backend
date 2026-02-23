@@ -74,19 +74,18 @@ CREATE TABLE IF NOT EXISTS profiles (
 -- A saved job search configuration. The Discovery Service polls active ones.
 -- ─────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS search_configs (
-  id                 UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id            UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  name               VARCHAR(255) NOT NULL DEFAULT 'My Search',
-  keywords           TEXT[]       NOT NULL DEFAULT '{}',   -- ["React", "TypeScript", "Remote"]
-  red_flags          TEXT[]       NOT NULL DEFAULT '{}',   -- ["ESN", "Stage", "Déplacement"]
-  target_salary_min  INT,                                  -- Annual, in local currency
-  target_salary_max  INT,
-  remote_policy      remote_policy,
-  location           VARCHAR(255),
-  cl_template_text   TEXT,                                 -- Cover letter base template for AI
-  is_active          BOOLEAN NOT NULL DEFAULT TRUE,
-  created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id       UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  job_titles    TEXT[]        NOT NULL DEFAULT '{}',   -- ["Software Engineer", "Fullstack Dev"]
+  locations     TEXT[]        NOT NULL DEFAULT '{}',   -- ["Paris", "Lyon", "Remote"]
+  remote_policy remote_policy NOT NULL DEFAULT 'HYBRID',
+  keywords      TEXT[]        NOT NULL DEFAULT '{}',   -- must-have tech terms ["React", "Go"]
+  red_flags     TEXT[]        NOT NULL DEFAULT '{}',   -- exclusion terms ["ESN", "Stage"]
+  salary_min    INT,                                   -- Annual, in local currency (€)
+  salary_max    INT,
+  is_active     BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- ─────────────────────────────────────────────────────────────
