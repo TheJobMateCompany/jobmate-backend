@@ -1,0 +1,42 @@
+# Ruff configuration for ai-coach-service
+# Docs: https://docs.astral.sh/ruff/
+
+# Target Python 3.12 (matches Dockerfile)
+target-version = "py312"
+
+# Files to lint
+include = ["*.py", "**/*.py"]
+extend-exclude = [
+    "__pycache__",
+    ".venv",
+    "venv",
+    "tmp",
+]
+
+[lint]
+# Rule sets to enable
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes (undefined names, unused imports)
+    "I",   # isort (import ordering)
+    "UP",  # pyupgrade (modern Python syntax)
+    "B",   # flake8-bugbear (likely bugs)
+    "C4",  # flake8-comprehensions
+    "SIM", # flake8-simplify
+]
+
+ignore = [
+    "E501",  # Line too long — handled by formatter
+    "B008",  # Do not perform function calls in default args (false positive with FastAPI Depends)
+    "SIM108", # Use ternary operator — sometimes less readable
+]
+
+[lint.isort]
+known-first-party = ["config", "database", "llm", "prompts", "match_score", "analyzer", "redis_consumer"]
+
+[format]
+# Black-compatible formatting
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"

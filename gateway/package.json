@@ -6,7 +6,10 @@
   "type": "module",
   "scripts": {
     "start": "node src/index.js",
-    "dev": "node --watch src/index.js"
+    "dev": "node --watch src/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src/"
   },
   "engines": {
     "node": ">=20"
@@ -17,11 +20,18 @@
     "body-parser": "^1.20.3",
     "cors": "^2.8.5",
     "express": "^4.21.0",
+    "express-rate-limit": "^7.4.1",
     "graphql": "^16.9.0",
     "graphql-scalars": "^1.23.0",
     "jsonwebtoken": "^9.0.2",
     "pg": "^8.13.0",
+    "pino": "^9.5.0",
     "redis": "^4.7.0"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "@eslint/js": "^9.18.0",
+    "eslint": "^9.18.0",
+    "globals": "^15.14.0",
+    "vitest": "^3.0.4"
+  }
 }

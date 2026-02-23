@@ -16,6 +16,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -30,32 +31,40 @@ import (
 const version = "1.0.0"
 
 func main() {
-	// ── Config ──────────────────────────────────────────────────────────────
+	// ── Structured JSON logging ──────────────────────────────────
+	jsonHandler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})
+	slog.SetDefault(slog.New(jsonHandler))
+	log.SetFlags(0) // log.Printf calls will still work but output raw lines
+
+	// ── Config ────────────────────────────────────────────
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatalf("[tracker-service] Config error: %v", err)
+		slog.Error("Config error", "err", err)
+		os.Exit(1)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	// ── PostgreSQL ───────────────────────────────────────────────────────────
-	log.Println("[tracker-service] Connecting to PostgreSQL…")
+	slog.Info("Connecting to PostgreSQL…")
 	pool, err := db.NewPostgresPool(ctx, cfg.DatabaseURL)
 	if err != nil {
-		log.Fatalf("[tracker-service] PostgreSQL: %v", err)
+		slog.Error("PostgreSQL connection failed", "err", err)
+		os.Exit(1)
 	}
 	defer pool.Close()
-	log.Println("[tracker-service] PostgreSQL connected ✓")
+	slog.Info("PostgreSQL connected ✓")
 
-	// ── Redis ────────────────────────────────────────────────────────────────
-	log.Println("[tracker-service] Connecting to Redis…")
+	// ── Redis ────────────────────────────────────────────
+	slog.Info("Connecting to Redis…")
 	rdb, err := db.NewRedisClient(ctx, cfg.RedisURL)
 	if err != nil {
-		log.Fatalf("[tracker-service] Redis: %v", err)
+		slog.Error("Redis connection failed", "err", err)
+		os.Exit(1)
 	}
 	defer rdb.Close()
-	log.Println("[tracker-service] Redis connected ✓")
+	slog.Info("Redis connected ✓")
 
 	// ── HTTP server ──────────────────────────────────────────────────────────
 	mux := http.NewServeMux()
@@ -72,9 +81,10 @@ func main() {
 	}
 
 	go func() {
-		log.Printf("[tracker-service] v%s listening on :%s", version, cfg.Port)
+		slog.Info("tracker-service listening", "port", cfg.Port, "version", version)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("[tracker-service] HTTP server error: %v", err)
+			slog.Error("HTTP server error", "err", err)
+			os.Exit(1)
 		}
 	}()
 
@@ -83,14 +93,14 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	log.Println("[tracker-service] Shutting down…")
+	slog.Info("tracker-service shutting down…")
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer shutdownCancel()
 
 	if err := srv.Shutdown(shutdownCtx); err != nil {
-		log.Printf("[tracker-service] Shutdown error: %v", err)
+		slog.Error("Shutdown error", "err", err)
 	}
-	log.Println("[tracker-service] Stopped.")
+	slog.Info("tracker-service stopped.")
 }
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {

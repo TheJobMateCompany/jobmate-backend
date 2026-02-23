@@ -18,20 +18,33 @@ On CMD_ANALYZE_JOB:
 
 import asyncio
 import logging
+import logging.config
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from pythonjsonlogger import jsonlogger
 
-# config import is the fail-fast check — raises RuntimeError if any required
-# env var is missing, which prevents the service from starting with bad config.
 from config import AI_COACH_PORT, SERVICE_VERSION
 import database
 import redis_consumer
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="[ai-coach-service] %(asctime)s %(levelname)s %(message)s",
-)
+
+# ── JSON structured logging ────────────────────────────────
+def _configure_json_logging() -> None:
+    handler = logging.StreamHandler()
+    formatter = jsonlogger.JsonFormatter(
+        fmt="%(asctime)s %(name)s %(levelname)s %(message)s",
+        datefmt="%Y-%m-%dT%H:%M:%S",
+        rename_fields={"levelname": "level", "asctime": "time"},
+        static_fields={"service": "ai-coach-service", "version": SERVICE_VERSION},
+    )
+    handler.setFormatter(formatter)
+    root = logging.getLogger()
+    root.handlers = [handler]
+    root.setLevel(logging.INFO)
+
+
+_configure_json_logging()
 logger = logging.getLogger(__name__)
 
 

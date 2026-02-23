@@ -50,8 +50,8 @@ jobs:
         working-directory: ./gateway
         run: |
           npm install
-          npm run lint --if-present
-          npm test --if-present
+          npm run lint
+          npm test
 
       - name: Install & lint user-service
         working-directory: ./user-service
@@ -70,13 +70,25 @@ jobs:
         working-directory: ./discovery-service
         run: |
           go vet ./...
-          go test ./... || true  # Non-blocking until tests are written
+          go test ./...
+
+      - name: golangci-lint discovery-service
+        uses: golangci/golangci-lint-action@v6
+        with:
+          working-directory: discovery-service
+          version: latest
 
       - name: Lint & test tracker-service
         working-directory: ./tracker-service
         run: |
           go vet ./...
-          go test ./... || true
+          go test ./...
+
+      - name: golangci-lint tracker-service
+        uses: golangci/golangci-lint-action@v6
+        with:
+          working-directory: tracker-service
+          version: latest
 
       # ── Python service (ai-coach) ──────────────────────────
       - name: Setup Python
@@ -89,8 +101,9 @@ jobs:
       - name: Install & lint ai-coach-service
         working-directory: ./ai-coach-service
         run: |
-          pip install --quiet ruff
-          ruff check . || true  # Non-blocking until linting rules are established
+          pip install --quiet ruff pytest pytest-asyncio python-json-logger
+          ruff check .
+          pytest tests/ -q
 
   # ─────────────────────────────────────────────────────────────
   # Job 2: Build & Push Images to GHCR

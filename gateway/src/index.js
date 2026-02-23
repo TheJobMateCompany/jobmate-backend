@@ -11,6 +11,7 @@
 import express from 'express';
 import cors from 'cors';
 import bodyParser from 'body-parser';
+import rateLimit from 'express-rate-limit';
 import { ApolloServer } from '@apollo/server';
 import { expressMiddleware } from '@apollo/server/express4';
 import jwt from 'jsonwebtoken';
@@ -20,8 +21,25 @@ import { resolvers } from './schema/resolvers.js';
 import { buildContext } from './middleware/auth.js';
 import { sseManager } from './sse/manager.js';
 import { subscriber } from './lib/redis.js';
+import { logger } from './lib/logger.js';
 
 const PORT = process.env.PORT || 4000;
+
+// ─────────────────────────────────────────────────────────────
+// Rate limiting
+// ─────────────────────────────────────────────────────────────
+const graphqlLimiter = rateLimit({
+  windowMs: 60 * 1000,          // 1 minute window
+  max: 120,                     // 120 requests per window per IP
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  message: { errors: [{ message: 'Too many requests — please slow down.' }] },
+  skip: (req) => {
+    // Skip rate-limiting for introspection queries (used by Apollo Sandbox / tooling)
+    const body = req.body;
+    return typeof body?.query === 'string' && body.query.trim().startsWith('query IntrospectionQuery');
+  },
+});
 
 // ─────────────────────────────────────────────────────────────
 // Apollo Server
@@ -36,7 +54,7 @@ const apollo = new ApolloServer({
 });
 
 await apollo.start();
-console.log('[gateway] Apollo Server started.');
+logger.info('Apollo Server started.');
 
 // ─────────────────────────────────────────────────────────────
 // Express App
@@ -49,14 +67,15 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
-// ── Health check (public) ──────────────────────────────────
+// ── Health check (public) ──────────────────────────
 app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', service: 'gateway', version: '0.1.0' });
+  res.json({ status: 'ok', service: 'gateway', version: '1.0.0' });
 });
 
-// ── GraphQL endpoint ───────────────────────────────────────
+// ── GraphQL endpoint ─────────────────────────────
 app.use(
   '/graphql',
+  graphqlLimiter,
   bodyParser.json(),
   expressMiddleware(apollo, {
     context: buildContext,
@@ -157,8 +176,8 @@ console.log('[redis] Subscribed to: EVENT_ANALYSIS_DONE, EVENT_CARD_MOVED');
 // Start HTTP Server
 // ─────────────────────────────────────────────────────────────
 app.listen(PORT, () => {
-  console.log(`[gateway] Listening on port ${PORT}`);
-  console.log(`[gateway] GraphQL: http://localhost:${PORT}/graphql`);
-  console.log(`[gateway] SSE:     http://localhost:${PORT}/events?token=<jwt>`);
-  console.log(`[gateway] Health:  http://localhost:${PORT}/health`);
+  logger.info({ port: PORT }, `Gateway v1.0.0 listening`);
+  logger.info(`GraphQL: http://localhost:${PORT}/graphql`);
+  logger.info(`SSE:     http://localhost:${PORT}/events?token=<jwt>`);
+  logger.info(`Health:  http://localhost:${PORT}/health`);
 });

@@ -11,7 +11,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -25,45 +25,52 @@ import (
 )
 
 func main() {
+	// ── Structured JSON logging ─────────────────────────────────
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})))
+
 	// ── Config ─────────────────────────────────────────────────
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatalf("[discovery-service] Config error: %v", err)
+		slog.Error("Config error", "err", err)
+		os.Exit(1)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	// ── PostgreSQL ─────────────────────────────────────────────
-	log.Println("[discovery-service] Connecting to PostgreSQL…")
+	slog.Info("Connecting to PostgreSQL…")
 	pool, err := db.NewPostgresPool(ctx, cfg.DatabaseURL)
 	if err != nil {
-		log.Fatalf("[discovery-service] PostgreSQL: %v", err)
+		slog.Error("PostgreSQL connection failed", "err", err)
+		os.Exit(1)
 	}
 	defer pool.Close()
-	log.Println("[discovery-service] PostgreSQL connected ✓")
+	slog.Info("PostgreSQL connected ✓")
 
 	// ── Redis ──────────────────────────────────────────────────
-	log.Println("[discovery-service] Connecting to Redis…")
+	slog.Info("Connecting to Redis…")
 	rdb, err := db.NewRedisClient(ctx, cfg.RedisURL)
 	if err != nil {
-		log.Fatalf("[discovery-service] Redis: %v", err)
+		slog.Error("Redis connection failed", "err", err)
+		os.Exit(1)
 	}
 	defer rdb.Close()
-	log.Println("[discovery-service] Redis connected ✓")
+	slog.Info("Redis connected ✓")
 
 	// ── Scraper ────────────────────────────────────────────────
 	fetcher := scraper.NewAdzunaFetcher(cfg.AdzunaAppID, cfg.AdzunaAppKey, cfg.AdzunaCountry)
 	worker := scraper.NewWorker(pool, rdb, fetcher)
 
 	if cfg.AdzunaAppID == "" || cfg.AdzunaAppKey == "" {
-		log.Println("[discovery-service] ⚠ ADZUNA_APP_ID / ADZUNA_APP_KEY not set — scraper will be a no-op until credentials are provided")
+		slog.Warn("ADZUNA_APP_ID / ADZUNA_APP_KEY not set — scraper will be a no-op until credentials are provided")
 	}
 
 	// ── Scheduler ──────────────────────────────────────────────
 	sched := scheduler.New(pool, rdb, worker, cfg.ScrapeIntervalHours)
 	if err := sched.Start(ctx); err != nil {
-		log.Fatalf("[discovery-service] Scheduler start failed: %v", err)
+		slog.Error("Scheduler start failed", "err", err)
+		os.Exit(1)
 	}
 	defer sched.Stop()
 
@@ -78,7 +85,7 @@ func main() {
 			w.Write([]byte(`{"error":"POST required"}`))
 			return
 		}
-		log.Println("[discovery-service] Manual scrape triggered via /trigger")
+		slog.Info("Manual scrape triggered via /trigger")
 		sched.RunOnce(ctx)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusAccepted)
@@ -92,9 +99,10 @@ func main() {
 	}
 
 	go func() {
-		log.Printf("[discovery-service] Listening on port %s (scrape interval: %dh)", cfg.Port, cfg.ScrapeIntervalHours)
+		slog.Info("discovery-service listening", "port", cfg.Port, "scrapeIntervalHours", cfg.ScrapeIntervalHours)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("[discovery-service] HTTP server error: %v", err)
+			slog.Error("HTTP server error", "err", err)
+			os.Exit(1)
 		}
 	}()
 
@@ -103,14 +111,15 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	log.Println("[discovery-service] Shutting down…")
+	slog.Info("discovery-service shutting down…")
 	cancel()
 
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer shutdownCancel()
 	if err := srv.Shutdown(shutdownCtx); err != nil {
-		log.Printf("[discovery-service] HTTP shutdown error: %v", err)
+		slog.Error("HTTP shutdown error", "err", err)
 	}
+	slog.Info("discovery-service stopped.")
 }
 
 type healthResponse struct {
