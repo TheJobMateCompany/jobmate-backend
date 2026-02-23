@@ -11,6 +11,7 @@ TODO:
 import asyncio
 import logging
 import os
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 import uvicorn
@@ -20,13 +21,6 @@ logging.basicConfig(
     format="[ai-coach-service] %(asctime)s %(levelname)s %(message)s",
 )
 logger = logging.getLogger(__name__)
-
-app = FastAPI(title="jobmate-ai-coach-service", version="0.1.0")
-
-
-@app.get("/health")
-async def health():
-    return {"status": "ok", "service": "ai-coach-service", "version": "0.1.0"}
 
 
 async def redis_listener():
@@ -47,14 +41,23 @@ async def redis_listener():
         await asyncio.sleep(60)
 
 
+@asynccontextmanager
 async def lifespan(application: FastAPI):
-    # Start background Redis listener on app startup
     task = asyncio.create_task(redis_listener())
     yield
     task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
 
 
-app.router.lifespan_context = lifespan
+app = FastAPI(title="jobmate-ai-coach-service", version="0.1.0", lifespan=lifespan)
+
+
+@app.get("/health")
+async def health():
+    return {"status": "ok", "service": "ai-coach-service", "version": "0.1.0"}
 
 
 if __name__ == "__main__":
