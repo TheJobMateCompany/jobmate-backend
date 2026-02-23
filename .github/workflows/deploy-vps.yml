@@ -9,6 +9,12 @@ on:
 env:
   REGISTRY: ghcr.io
 
+# Workflow-level permissions — ensures GITHUB_TOKEN can push to GHCR
+# regardless of org-level default settings.
+permissions:
+  contents: read
+  packages: write
+
 # ─────────────────────────────────────────────────────────────
 # Job 1: Test & Lint
 # Runs on every push and PR. Validates each service before building.
