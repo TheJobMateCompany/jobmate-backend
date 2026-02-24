@@ -32,13 +32,13 @@ def _load_proto():
         return
     import sys
 
-    from grpc_tools import protoc
+    from grpc_tools import (
+        _proto,  # type: ignore[import]
+        protoc,
+    )
 
     out_dir = "/tmp/profile_service_proto"
     os.makedirs(out_dir, exist_ok=True)
-
-    # Find google protobuf includes bundled with grpc_tools
-    from grpc_tools import _proto  # type: ignore[import]
 
     proto_include = os.path.dirname(_proto.__file__)
 

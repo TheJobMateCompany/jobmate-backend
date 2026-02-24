@@ -1,6 +1,7 @@
 # Ruff configuration for discovery-service
 target-version = "py312"
 line-length = 100
+src = ["src"]
 
 include = ["src/**/*.py", "tests/**/*.py"]
 extend-exclude = ["__pycache__", ".venv"]

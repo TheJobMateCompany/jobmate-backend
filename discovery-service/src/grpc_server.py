@@ -27,8 +27,11 @@ def _load_proto():
     if _pb2 is not None:
         return
     import sys
-    from grpc_tools import protoc
-    from grpc_tools import _proto  # type: ignore[import]
+
+    from grpc_tools import (
+        _proto,  # type: ignore[import]
+        protoc,
+    )
 
     proto_include = os.path.dirname(_proto.__file__)
     out_dir = "/tmp/discovery_service_proto"
