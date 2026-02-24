@@ -21,6 +21,10 @@ import pytest
 _SERVICE_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(_SERVICE_ROOT, "src"))
 
+# config.py calls _require() at import time — set dummy values before any src import
+os.environ.setdefault("DATABASE_URL", "postgresql://test:test@localhost/test")
+os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
+
 import cv_parser  # noqa: E402
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
