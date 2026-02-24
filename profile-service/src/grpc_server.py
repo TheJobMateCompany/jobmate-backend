@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 
 import grpc
 from google.protobuf import timestamp_pb2
@@ -32,6 +31,7 @@ def _load_proto():
     if _pb2 is not None:
         return
     import sys
+
     from grpc_tools import protoc
 
     out_dir = "/tmp/profile_service_proto"
@@ -56,7 +56,6 @@ def _load_proto():
         raise RuntimeError(f"protoc compilation failed (code={code})")
 
     sys.path.insert(0, out_dir)
-    import importlib
     import user_pb2 as _m
     import user_pb2_grpc as _g
 
@@ -70,7 +69,7 @@ def _load_proto():
 def _ts(dt: datetime | None) -> timestamp_pb2.Timestamp:
     ts = timestamp_pb2.Timestamp()
     if dt:
-        ts.FromDatetime(dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt)
+        ts.FromDatetime(dt.replace(tzinfo=datetime.UTC) if dt.tzinfo is None else dt)
     return ts
 
 

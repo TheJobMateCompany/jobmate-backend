@@ -1,4 +1,5 @@
 """Entry-point: starts gRPC server + FastAPI HTTP health endpoint concurrently."""
+
 from __future__ import annotations
 
 import asyncio
@@ -14,6 +15,7 @@ import grpc_server
 
 
 # ─── Logging setup ────────────────────────────────────────────────────────────
+
 
 def _configure_logging() -> None:
     handler = logging.StreamHandler()
@@ -38,6 +40,7 @@ async def health():
 
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
+
 
 async def _main() -> None:
     _configure_logging()
