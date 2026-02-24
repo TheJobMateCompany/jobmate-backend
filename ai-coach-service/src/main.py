@@ -25,14 +25,14 @@ On CMD_PARSE_CV:
 import asyncio
 import logging
 import logging.config
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 
 from fastapi import FastAPI
 from pythonjsonlogger import jsonlogger
 
-from config import AI_COACH_PORT, SERVICE_VERSION
 import database
 import redis_consumer
+from config import AI_COACH_PORT, SERVICE_VERSION
 
 
 # ── JSON structured logging ────────────────────────────────
@@ -74,10 +74,8 @@ async def lifespan(application: FastAPI):
     # ── Shutdown ──────────────────────────────────────────────────────────────
     logger.info("ai-coach-service shutting down…")
     consumer_task.cancel()
-    try:
+    with suppress(asyncio.CancelledError):
         await consumer_task
-    except asyncio.CancelledError:
-        pass
 
     await database.close_pool()
     await rdb.aclose()
@@ -109,9 +107,3 @@ if __name__ == "__main__":
         port=int(AI_COACH_PORT),
         log_level="info",
     )
-
-
-if __name__ == "__main__":
-    port = int(os.getenv("AI_COACH_PORT", 8083))
-    logger.info(f"Starting on port {port}")
-    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)

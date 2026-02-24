@@ -3,8 +3,9 @@ Async PostgreSQL connection pool via asyncpg.
 The pool is created once at startup and shared across all coroutines.
 """
 
-import asyncpg
 import logging
+
+import asyncpg
 
 from config import DATABASE_URL
 

@@ -10,10 +10,9 @@ Algorithm:
 This is a fast, deterministic baseline. The LLM Pros/Cons adds semantic nuance.
 """
 
-import re
 import json
+import re
 from typing import Any
-
 
 # Common English/French stop words to ignore in keyword extraction
 _STOP_WORDS = {
@@ -89,8 +88,6 @@ _STOP_WORDS = {
     "très",
     "votre",
     "notre",
-    "une",
-    "des",
     "ses",
     "mon",
     "ton",

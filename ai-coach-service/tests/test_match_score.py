@@ -5,16 +5,14 @@ Run with:  pytest tests/test_match_score.py -v
 """
 
 import json
-import pytest
-import sys
 import os
+import sys
 
 # Allow importing from ai-coach-service/src
 _SERVICE_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(_SERVICE_ROOT, "src"))
 
-import match_score as ms
-
+import match_score as ms  # noqa: E402
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 

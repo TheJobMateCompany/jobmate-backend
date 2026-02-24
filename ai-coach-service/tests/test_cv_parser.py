@@ -10,10 +10,9 @@ All external I/O is mocked:
   - rdb.publish                        → async mock
 """
 
-import asyncio
 import json
-import sys
 import os
+import sys
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -22,8 +21,7 @@ import pytest
 _SERVICE_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(_SERVICE_ROOT, "src"))
 
-import cv_parser
-
+import cv_parser  # noqa: E402
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 

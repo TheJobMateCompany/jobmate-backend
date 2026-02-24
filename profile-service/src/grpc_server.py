@@ -6,7 +6,7 @@ import json
 import logging
 import os
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 
 import grpc
 from google.protobuf import timestamp_pb2
@@ -69,7 +69,7 @@ def _load_proto():
 def _ts(dt: datetime | None) -> timestamp_pb2.Timestamp:
     ts = timestamp_pb2.Timestamp()
     if dt:
-        ts.FromDatetime(dt.replace(tzinfo=datetime.UTC) if dt.tzinfo is None else dt)
+        ts.FromDatetime(dt.replace(tzinfo=UTC) if dt.tzinfo is None else dt)
     return ts
 
 

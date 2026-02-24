@@ -3,6 +3,7 @@
 
 # Target Python 3.12 (matches Dockerfile)
 target-version = "py312"
+src = ["src"]
 
 # Files to lint
 include = ["src/**/*.py", "tests/**/*.py"]

@@ -13,9 +13,7 @@ Flow triggered by CMD_ANALYZE_JOB:
 
 import json
 import logging
-from datetime import datetime, timezone
-
-import asyncpg
+from datetime import UTC, datetime
 
 import llm
 import match_score as ms
@@ -116,7 +114,7 @@ async def analyze(application_id: str, user_id: str, rdb) -> None:
         "pros": pros,
         "cons": cons,
         "suggested_cv_content": "\n".join(f"• {s}" for s in cv_suggestions),
-        "analyzed_at": datetime.now(timezone.utc).isoformat(),
+        "analyzed_at": datetime.now(UTC).isoformat(),
     }
 
     async with pool.acquire() as conn:
@@ -157,7 +155,7 @@ async def analyze(application_id: str, user_id: str, rdb) -> None:
 def _load_json(value) -> list:
     if value is None:
         return []
-    if isinstance(value, (list, dict)):
+    if isinstance(value, list | dict):
         return value if isinstance(value, list) else [value]
     try:
         return json.loads(value)
