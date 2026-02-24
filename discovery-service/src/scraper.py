@@ -100,7 +100,7 @@ async def _upsert_job(pool, job: JobResult, search_config_id: str | None) -> str
         INSERT INTO job_feed
           (search_config_id, title, description, source_url, salary_min, salary_max,
            status, raw_data, company_name, is_manual)
-        VALUES ($1, $2, $3, $4, $5, $6, 'APPROVED', $7, $8, FALSE)
+        VALUES ($1, $2, $3, $4, $5, $6, 'PENDING', $7, $8, FALSE)
         ON CONFLICT (source_url) DO NOTHING
         RETURNING id
         """,
@@ -138,7 +138,7 @@ async def run_for_config(
                 if jid:
                     inserted += 1
                     await redis_client.publish(
-                        "JOB_APPROVED",
+                        "EVENT_JOB_DISCOVERED",
                         {
                             "jobFeedId": jid,
                             "userId": user_id,

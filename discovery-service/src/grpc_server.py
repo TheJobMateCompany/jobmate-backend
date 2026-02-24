@@ -108,7 +108,7 @@ class DiscoveryServicer:
             """
             INSERT INTO job_feed
               (search_config_id, title, description, source_url, status, raw_data, is_manual)
-            VALUES ($1, $2, $3, $4, 'APPROVED', $5, TRUE)
+            VALUES ($1, $2, $3, $4, 'PENDING', $5, TRUE)
             ON CONFLICT (source_url) DO UPDATE SET updated_at = NOW()
             RETURNING id
             """,
@@ -121,7 +121,7 @@ class DiscoveryServicer:
         job_feed_id = str(row["id"])
 
         await redis_client.publish(
-            "JOB_APPROVED",
+            "EVENT_JOB_DISCOVERED",
             {
                 "jobFeedId": job_feed_id,
                 "userId": uid,
@@ -131,7 +131,7 @@ class DiscoveryServicer:
 
         return _pb2.AddJobByUrlResponse(
             job_feed_id=job_feed_id,
-            message="Job added and queued for analysis",
+            message="Job added to your inbox",
         )
 
     async def AddJobManually(self, request, context):
@@ -168,7 +168,7 @@ class DiscoveryServicer:
             INSERT INTO job_feed
               (search_config_id, title, description, source_url, status, raw_data,
                is_manual, company_name, company_description, why_us)
-            VALUES ($1, $2, $3, $4, 'APPROVED', $5, TRUE, $6, $7, $8)
+            VALUES ($1, $2, $3, $4, 'PENDING', $5, TRUE, $6, $7, $8)
             RETURNING id
             """,
             search_config_id,
@@ -183,7 +183,7 @@ class DiscoveryServicer:
         job_feed_id = str(row["id"])
 
         await redis_client.publish(
-            "JOB_APPROVED",
+            "EVENT_JOB_DISCOVERED",
             {
                 "jobFeedId": job_feed_id,
                 "userId": uid,
@@ -193,7 +193,7 @@ class DiscoveryServicer:
 
         return _pb2.AddJobManuallyResponse(
             job_feed_id=job_feed_id,
-            message="Manual job added and queued for analysis",
+            message="Manual job added to your inbox",
         )
 
     async def TriggerScan(self, request, context):

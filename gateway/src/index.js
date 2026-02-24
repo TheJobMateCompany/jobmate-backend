@@ -132,6 +132,46 @@ app.get('/events', (req, res) => {
 // ─────────────────────────────────────────────────────────────
 
 /**
+ * EVENT_JOB_DISCOVERED — published by Discovery Service whenever a new job
+ * lands in the user's inbox (PENDING). Triggers an inbox badge refresh on
+ * the frontend without requiring a page reload.
+ * Payload: { jobFeedId, userId, searchConfigId }
+ */
+await subscriber.subscribe('EVENT_JOB_DISCOVERED', (raw) => {
+  try {
+    const payload = JSON.parse(raw);
+    console.log(
+      `[redis] EVENT_JOB_DISCOVERED — user ${payload.userId}, job ${payload.jobFeedId}`
+    );
+    sseManager.send(payload.userId, {
+      type: 'JOB_DISCOVERED',
+      jobFeedId: payload.jobFeedId,
+      searchConfigId: payload.searchConfigId ?? null,
+    });
+  } catch (err) {
+    console.error('[redis] Failed to parse EVENT_JOB_DISCOVERED:', err.message);
+  }
+});
+
+/**
+ * EVENT_CV_PARSED — published by AI Coach after enriching a profile from a CV.
+ * Payload: { type, userId, fieldsUpdated } or { type, userId, error }
+ */
+await subscriber.subscribe('EVENT_CV_PARSED', (raw) => {
+  try {
+    const payload = JSON.parse(raw);
+    console.log(`[redis] EVENT_CV_PARSED — user ${payload.userId}`);
+    sseManager.send(payload.userId, {
+      type: 'CV_PARSED',
+      fieldsUpdated: payload.fieldsUpdated ?? null,
+      error: payload.error ?? null,
+    });
+  } catch (err) {
+    console.error('[redis] Failed to parse EVENT_CV_PARSED:', err.message);
+  }
+});
+
+/**
  * EVENT_ANALYSIS_DONE — published by AI Coach after processing an application.
  * Payload: { type, applicationId, userId, matchScore, hasCoverLetter, analyzedAt }
  */
@@ -174,7 +214,7 @@ await subscriber.subscribe('EVENT_CARD_MOVED', (raw) => {
   }
 });
 
-console.log('[redis] Subscribed to: EVENT_ANALYSIS_DONE, EVENT_CARD_MOVED');
+console.log('[redis] Subscribed to: EVENT_JOB_DISCOVERED, EVENT_CV_PARSED, EVENT_ANALYSIS_DONE, EVENT_CARD_MOVED');
 
 // ─────────────────────────────────────────────────────────────
 // Start HTTP Server
