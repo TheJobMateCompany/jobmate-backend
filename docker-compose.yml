@@ -37,7 +37,8 @@ services:
   # ─────────────────────────────────────────────────────────────
   gateway:
     build:
-      context: ./gateway
+      context: .
+      dockerfile: ./gateway/Dockerfile
       target: development
     container_name: jm_gateway
     env_file: .env
@@ -47,7 +48,7 @@ services:
       - DISCOVERY_GRPC_ADDR=discovery-service:9083
     volumes:
       - ./gateway/src:/app/src  # Only src/ — keeps container's Linux node_modules intact
-      - ./proto:/app/../proto:ro  # shared proto definitions
+      - ./proto:/proto:ro  # shared proto definitions
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.gateway.rule=PathPrefix(`/graphql`) || PathPrefix(`/events`) || PathPrefix(`/health`)"

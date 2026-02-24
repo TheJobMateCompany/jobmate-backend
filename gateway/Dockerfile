@@ -1,13 +1,14 @@
 # ─── Stage: Base ───────────────────────────────────────────────
 FROM node:20-alpine AS base
 WORKDIR /app
-COPY package*.json ./
+COPY gateway/package*.json ./
 
 # ─── Stage: Development ────────────────────────────────────────
 # Hot-reload via --watch (Node 20 built-in)
 FROM base AS development
 RUN npm install
-COPY . .
+COPY gateway/src/ ./src/
+COPY proto/ /proto/
 EXPOSE 4000
 CMD ["node", "--watch", "src/index.js"]
 
@@ -24,7 +25,9 @@ WORKDIR /app
 # Copy only production dependencies and source
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json
-COPY src ./src
+COPY gateway/src/ ./src/
+# Bake shared proto files into the image (no volume required in prod)
+COPY proto/ /proto/
 EXPOSE 4000
 # Run as non-root
 USER node

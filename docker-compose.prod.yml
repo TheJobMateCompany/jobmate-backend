@@ -21,7 +21,7 @@ services:
   # Reverse Proxy — Traefik + Let's Encrypt (TLS auto)
   # ─────────────────────────────────────────────────────────────
   traefik:
-    image: traefik:v3.3
+    image: traefik:latest
     container_name: jm_traefik
     command:
       - "--providers.docker=true"
@@ -198,7 +198,7 @@ services:
   # PostgreSQL 16
   # ─────────────────────────────────────────────────────────────
   postgres:
-    image: postgres:16
+    image: postgres:latest
     container_name: jm_postgres
     env_file: .env
     volumes:
@@ -223,7 +223,7 @@ services:
   # Redis 7 — AOF persistence enabled
   # ─────────────────────────────────────────────────────────────
   redis:
-    image: redis:7
+    image: redis:latest
     container_name: jm_redis
     command: redis-server --appendonly yes --aof-use-rdb-preamble yes --aof-load-truncated yes
     volumes:
