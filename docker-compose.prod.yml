@@ -202,7 +202,7 @@ services:
     container_name: jm_postgres
     env_file: .env
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql        # PG18+: parent dir, PG manages the versioned subdir
       - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     deploy:
       resources:
@@ -215,7 +215,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
-      start_period: 30s
     restart: unless-stopped
     networks:
       - internal_network
@@ -236,11 +235,10 @@ services:
         reservations:
           memory: 128M
     healthcheck:
-      test: ["CMD-SHELL", "redis-cli -h 127.0.0.1 ping | grep -q PONG"]
-      interval: 5s
-      timeout: 5s
-      retries: 20
-      start_period: 30s
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
     restart: unless-stopped
     networks:
       - internal_network

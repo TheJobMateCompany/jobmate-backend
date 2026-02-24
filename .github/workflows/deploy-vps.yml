@@ -225,7 +225,35 @@ jobs:
             docker compose -f docker-compose.prod.yml pull
 
             echo "→ Restarting updated containers (zero-downtime)..."
-            docker compose -f docker-compose.prod.yml up -d --remove-orphans --wait --wait-timeout 120
+            docker compose -f docker-compose.prod.yml up -d --remove-orphans || {
+              echo ""
+              echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+              echo "❌ docker compose up failed — dumping diagnostics"
+              echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+              echo ""
+              echo "──── Container status ────"
+              docker compose -f docker-compose.prod.yml ps -a
+              echo ""
+              echo "──── jm_postgres logs ────"
+              docker logs --tail 50 jm_postgres 2>&1 || true
+              echo ""
+              echo "──── jm_redis logs ────"
+              docker logs --tail 50 jm_redis 2>&1 || true
+              echo ""
+              echo "──── jm_postgres inspect (health) ────"
+              docker inspect jm_postgres --format '{{json .State.Health}}' 2>/dev/null | python3 -m json.tool || true
+              echo ""
+              echo "──── jm_redis inspect (health) ────"
+              docker inspect jm_redis --format '{{json .State.Health}}' 2>/dev/null | python3 -m json.tool || true
+              echo ""
+              echo "──── Disk space ────"
+              df -h /
+              echo ""
+              echo "──── Docker volumes ────"
+              docker volume ls
+              echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+              exit 1
+            }
 
             echo "→ Cleaning dangling images..."
             docker image prune -f
