@@ -21,9 +21,10 @@ linters-settings:
       - fmt.Println
       - fmt.Printf
       - fmt.Fprintln
-      - (encoding/json.Encoder).Encode
   govet:
     enable-all: true
+    disable:
+      - fieldalignment # requires automated tool to fix; not a correctness issue
 
 issues:
   max-issues-per-linter: 50
