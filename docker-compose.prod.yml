@@ -225,7 +225,7 @@ services:
   redis:
     image: redis:7
     container_name: jm_redis
-    command: redis-server --appendonly yes
+    command: redis-server --appendonly yes --aof-use-rdb-preamble yes --aof-load-truncated yes
     volumes:
       - redis_data:/data
     deploy:

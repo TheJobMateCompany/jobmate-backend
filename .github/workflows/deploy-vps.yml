@@ -224,6 +224,34 @@ jobs:
             echo "→ Pulling new images..."
             docker compose -f docker-compose.prod.yml pull
 
+            echo "→ Ensuring infrastructure services are healthy..."
+            docker compose -f docker-compose.prod.yml up -d redis postgres
+            for i in $(seq 1 15); do
+              REDIS_STATUS=$(docker inspect jm_redis --format '{{.State.Health.Status}}' 2>/dev/null || echo 'missing')
+              if [ "$REDIS_STATUS" = "healthy" ]; then
+                echo "  ✅ Redis healthy"
+                break
+              fi
+              # Detect AOF/RDB version incompatibility from a stale volume
+              if docker logs jm_redis 2>&1 | grep -q "Can't handle RDB format"; then
+                echo "  ⚠️  Redis AOF volume is incompatible (stale data from a different Redis version)."
+                echo "  ⚠️  Removing stale redis_data volume and restarting Redis..."
+                docker compose -f docker-compose.prod.yml stop redis
+                docker compose -f docker-compose.prod.yml rm -f redis
+                docker volume rm jobmate-backend_redis_data || true
+                docker compose -f docker-compose.prod.yml up -d redis
+                sleep 5
+                continue
+              fi
+              echo "  Waiting for Redis to become healthy ($i/15)..."
+              sleep 3
+            done
+            if [ "$(docker inspect jm_redis --format '{{.State.Health.Status}}' 2>/dev/null)" != "healthy" ]; then
+              echo "❌ Redis failed to become healthy after 45s"
+              docker logs --tail 30 jm_redis 2>&1
+              exit 1
+            fi
+
             echo "→ Restarting updated containers (zero-downtime)..."
             docker compose -f docker-compose.prod.yml up -d --remove-orphans || {
               echo ""
