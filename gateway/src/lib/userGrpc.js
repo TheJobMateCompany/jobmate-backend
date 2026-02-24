@@ -1,16 +1,16 @@
 /**
- * userGrpc.js — gRPC client for user-service
+ * userGrpc.js — gRPC client for profile-service
  *
  * Dynamic proto loading via @grpc/proto-loader (no JS codegen required).
  * Follows the exact same pattern as trackerGrpc.js.
  *
  * All RPCs forward the authenticated userId via gRPC metadata key "x-user-id".
- * The Gateway has already validated the JWT; the user-service trusts this header
+ * The Gateway has already validated the JWT; the profile-service trusts this header
  * on the internal Docker network.
  *
  * Environment variables:
- *   USER_GRPC_ADDR — host:port for the user-service gRPC server
- *                    (default: user-service:9081)
+ *   USER_GRPC_ADDR — host:port for the profile-service gRPC server
+ *                    (default: profile-service:9081)
  */
 
 import { fileURLToPath } from 'url';
@@ -32,11 +32,11 @@ const packageDef = protoLoader.loadSync(PROTO_PATH, {
 });
 
 const grpcObj = grpc.loadPackageDefinition(packageDef);
-const UserService = grpcObj.user.UserService;
+const ProfileService = grpcObj.user.ProfileService;
 
-const addr = process.env.USER_GRPC_ADDR || 'user-service:9081';
+const addr = process.env.USER_GRPC_ADDR || 'profile-service:9081';
 
-const client = new UserService(addr, grpc.credentials.createInsecure());
+const client = new ProfileService(addr, grpc.credentials.createInsecure());
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -70,6 +70,15 @@ function call(method, request, meta) {
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 /**
+ * Fetch the full profile for a user.
+ * @param {string} userId
+ * @returns {Promise<object>} ProfileProto
+ */
+export async function getProfile(userId) {
+  return call('getProfile', {}, userMeta(userId));
+}
+
+/**
  * List all active SearchConfigs for the given user.
  * @param {string} userId
  * @returns {Promise<object[]>} array of SearchConfigProto objects (camelCase)
@@ -82,18 +91,21 @@ export async function getSearchConfigs(userId) {
 /**
  * Create a new SearchConfig.
  * @param {string} userId
- * @param {object} input — { jobTitles, locations, remotePolicy, keywords, redFlags, salaryMin, salaryMax }
+ * @param {object} input
  * @returns {Promise<object>} created SearchConfigProto
  */
 export async function createSearchConfig(userId, input) {
   return call('createSearchConfig', {
-    jobTitles:    input.jobTitles    ?? [],
-    locations:    input.locations    ?? [],
-    remotePolicy: input.remotePolicy ?? 'HYBRID',
-    keywords:     input.keywords     ?? [],
-    redFlags:     input.redFlags     ?? [],
-    salaryMin:    input.salaryMin    ?? 0,
-    salaryMax:    input.salaryMax    ?? 0,
+    jobTitles:           input.jobTitles           ?? [],
+    locations:           input.locations           ?? [],
+    remotePolicy:        input.remotePolicy        ?? 'HYBRID',
+    keywords:            input.keywords            ?? [],
+    redFlags:            input.redFlags            ?? [],
+    salaryMin:           input.salaryMin           ?? 0,
+    salaryMax:           input.salaryMax           ?? 0,
+    startDate:           input.startDate           ?? '',
+    duration:            input.duration            ?? '',
+    coverLetterTemplate: input.coverLetterTemplate ?? '',
   }, userMeta(userId));
 }
 
@@ -107,13 +119,16 @@ export async function createSearchConfig(userId, input) {
 export async function updateSearchConfig(userId, id, input) {
   return call('updateSearchConfig', {
     id,
-    jobTitles:    input.jobTitles    ?? [],
-    locations:    input.locations    ?? [],
-    remotePolicy: input.remotePolicy ?? '',
-    keywords:     input.keywords     ?? [],
-    redFlags:     input.redFlags     ?? [],
-    salaryMin:    input.salaryMin    ?? 0,
-    salaryMax:    input.salaryMax    ?? 0,
+    jobTitles:           input.jobTitles           ?? [],
+    locations:           input.locations           ?? [],
+    remotePolicy:        input.remotePolicy        ?? '',
+    keywords:            input.keywords            ?? [],
+    redFlags:            input.redFlags            ?? [],
+    salaryMin:           input.salaryMin           ?? 0,
+    salaryMax:           input.salaryMax           ?? 0,
+    startDate:           input.startDate           ?? '',
+    duration:            input.duration            ?? '',
+    coverLetterTemplate: input.coverLetterTemplate ?? '',
   }, userMeta(userId));
 }
 
@@ -128,7 +143,7 @@ export async function deleteSearchConfig(userId, id) {
 }
 
 /**
- * Upload a CV file to the user-service.
+ * Upload a CV file to the profile-service.
  * @param {string} userId
  * @param {Buffer} fileBytes — raw file buffer
  * @param {string} fileName  — original filename (e.g. "resume.pdf")
@@ -137,4 +152,14 @@ export async function deleteSearchConfig(userId, id) {
  */
 export async function uploadCV(userId, fileBytes, fileName, mimeType) {
   return call('uploadCV', { fileBytes, fileName, mimeType }, userMeta(userId));
+}
+
+/**
+ * Trigger async CV parsing (AI Coach enriches profile from the stored PDF).
+ * @param {string} userId
+ * @param {string} cvUrl — relative path returned by uploadCV
+ * @returns {Promise<{ success: boolean, message: string }>}
+ */
+export async function parseCV(userId, cvUrl) {
+  return call('parseCV', { cvUrl, userId }, userMeta(userId));
 }

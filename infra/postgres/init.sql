@@ -61,12 +61,14 @@ CREATE TABLE IF NOT EXISTS profiles (
   user_id         UUID UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   full_name       VARCHAR(255),
   status          profile_status,
-  skills_json     JSONB NOT NULL DEFAULT '[]',     -- [{ "name": "React", "level": "expert" }]
-  experience_json JSONB NOT NULL DEFAULT '[]',     -- [{ "title": "...", "company": "...", ... }]
-  projects_json   JSONB NOT NULL DEFAULT '[]',     -- [{ "name": "...", "description": "...", ... }]
-  education_json  JSONB NOT NULL DEFAULT '[]',     -- [{ "degree": "...", "school": "...", ... }]
-  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  skills_json          JSONB NOT NULL DEFAULT '[]',  -- [{ "name": "React", "level": "expert" }]
+  experience_json      JSONB NOT NULL DEFAULT '[]',  -- [{ "title": "...", "company": "...", ... }]
+  projects_json        JSONB NOT NULL DEFAULT '[]',  -- [{ "name": "...", "description": "...", ... }]
+  education_json       JSONB NOT NULL DEFAULT '[]',  -- [{ "degree": "...", "school": "...", ... }]
+  certifications_json  JSONB NOT NULL DEFAULT '[]',  -- [{ "name": "AWS SAA", "issuer": "Amazon", "year": 2025 }]
+  cv_url               TEXT,                         -- relative path, e.g. "/uploads/1234-abc.pdf"
+  created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- ─────────────────────────────────────────────────────────────
@@ -81,11 +83,15 @@ CREATE TABLE IF NOT EXISTS search_configs (
   remote_policy remote_policy NOT NULL DEFAULT 'HYBRID',
   keywords      TEXT[]        NOT NULL DEFAULT '{}',   -- must-have tech terms ["React", "Go"]
   red_flags     TEXT[]        NOT NULL DEFAULT '{}',   -- exclusion terms ["ESN", "Stage"]
-  salary_min    INT,                                   -- Annual, in local currency (€)
-  salary_max    INT,
-  is_active     BOOLEAN NOT NULL DEFAULT TRUE,
-  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  salary_min              INT,                          -- Annual, in local currency (€)
+  salary_max              INT,
+  start_date              DATE,                         -- Desired start date for the position
+  duration                VARCHAR(100),                 -- e.g. "CDI", "6 months", "Stage 6 mois"
+  cover_letter_template   TEXT,                         -- User's base template for LLM cover letter generation
+  is_active               BOOLEAN NOT NULL DEFAULT TRUE,
+  completed_at            TIMESTAMPTZ,                  -- Set when a HIRED outcome archives this search (distinct from is_active soft-delete)
+  created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- ─────────────────────────────────────────────────────────────
@@ -95,10 +101,16 @@ CREATE TABLE IF NOT EXISTS search_configs (
 -- ─────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS job_feed (
   id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  search_config_id UUID NOT NULL REFERENCES search_configs(id) ON DELETE CASCADE,
-  raw_data         JSONB NOT NULL,          -- Full scraped job offer payload
-  source_url       TEXT,                   -- Original URL of the job posting
+  -- Nullable: ON DELETE SET NULL so manual jobs survive config deletion
+  search_config_id UUID REFERENCES search_configs(id) ON DELETE SET NULL,
+  raw_data         JSONB NOT NULL DEFAULT '{}', -- Full scraped / submitted job offer payload
+  source_url       TEXT,                        -- Original URL (scraped) or NULL (manual form)
   status           job_status NOT NULL DEFAULT 'PENDING',
+  is_manual        BOOLEAN NOT NULL DEFAULT FALSE, -- TRUE = added by user (skips PENDING, starts APPROVED)
+  -- Extra structured columns for manually-entered jobs (supplement raw_data)
+  company_name        VARCHAR(255),
+  company_description TEXT,
+  why_us              TEXT,
   expires_at       TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '30 days'),
   created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -118,12 +130,13 @@ CREATE TABLE IF NOT EXISTS applications (
   generated_cover_letter  TEXT,
   user_notes              TEXT,
   user_rating             SMALLINT CHECK (user_rating BETWEEN 1 AND 5),
+  relance_reminder_at     TIMESTAMPTZ,         -- Optional: when to remind user to follow up
   history_log             JSONB NOT NULL DEFAULT '[]',
   -- Structure: [{ "from": "TO_APPLY", "to": "APPLIED", "at": "2026-01-01T10:00:00Z" }]
   created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  -- One application per user per job feed item
-  UNIQUE (user_id, job_feed_id)
+  -- One application per user per job feed item (NULL job_feed_id allowed for edge cases)
+  UNIQUE NULLS NOT DISTINCT (user_id, job_feed_id)
 );
 
 -- ─────────────────────────────────────────────────────────────

@@ -2,19 +2,19 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# System deps
+# System deps for asyncpg
 RUN apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev && \
     rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy Python source files only
-COPY *.py ./
-COPY ruff.toml* ./
+# Copy service code
+COPY . .
 
-# Proto definitions mounted via docker-compose volume at /app/proto
+# Copy proto definitions (mounted at /app/proto in compose)
+# Volume handled in docker-compose.yml
 
-EXPOSE 4002 9083
+EXPOSE 4001 9081
 
 CMD ["python", "main.py"]

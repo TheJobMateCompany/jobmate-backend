@@ -5,7 +5,7 @@ Startup sequence:
   1. Validate required environment variables (config.py — fail-fast)
   2. Open asyncpg connection pool (database.py)
   3. Open Redis async connection (redis_consumer.py)
-  4. Spawn CMD_ANALYZE_JOB subscriber as a background task (redis_consumer.py)
+  4. Spawn Redis subscriber as a background task (redis_consumer.py)
   5. Expose /health endpoint
 
 On CMD_ANALYZE_JOB:
@@ -14,6 +14,12 @@ On CMD_ANALYZE_JOB:
   - Call OpenRouter LLM for Pros/Cons, Cover Letter, CV suggestions
   - Write ai_analysis + generated_cover_letter back to applications
   - Publish EVENT_ANALYSIS_DONE for the Gateway SSE stream
+
+On CMD_PARSE_CV:
+  - Extract text from uploaded PDF using pdfminer.six
+  - Call LLM to extract skills, experience, education, certifications, projects
+  - PATCH the profiles table with the extracted structured data
+  - Publish EVENT_CV_PARSED for the Gateway SSE stream
 """
 
 import asyncio

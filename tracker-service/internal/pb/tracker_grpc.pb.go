@@ -19,10 +19,13 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	TrackerService_ListApplications_FullMethodName = "/tracker.TrackerService/ListApplications"
-	TrackerService_MoveCard_FullMethodName         = "/tracker.TrackerService/MoveCard"
-	TrackerService_AddNote_FullMethodName          = "/tracker.TrackerService/AddNote"
-	TrackerService_RateApplication_FullMethodName  = "/tracker.TrackerService/RateApplication"
+	TrackerService_ListApplications_FullMethodName   = "/tracker.TrackerService/ListApplications"
+	TrackerService_GetApplication_FullMethodName     = "/tracker.TrackerService/GetApplication"
+	TrackerService_CreateApplication_FullMethodName  = "/tracker.TrackerService/CreateApplication"
+	TrackerService_MoveCard_FullMethodName           = "/tracker.TrackerService/MoveCard"
+	TrackerService_AddNote_FullMethodName            = "/tracker.TrackerService/AddNote"
+	TrackerService_RateApplication_FullMethodName    = "/tracker.TrackerService/RateApplication"
+	TrackerService_SetRelanceReminder_FullMethodName = "/tracker.TrackerService/SetRelanceReminder"
 )
 
 // TrackerServiceClient is the client API for TrackerService service.
@@ -37,13 +40,22 @@ const (
 // ─────────────────────────────────────────────────────────────────────────────
 type TrackerServiceClient interface {
 	// List all applications for the authenticated user.
+	// Optional status_filter narrows to a single Kanban column.
 	ListApplications(ctx context.Context, in *ListApplicationsRequest, opts ...grpc.CallOption) (*ListApplicationsResponse, error)
+	// Fetch a single application by ID. Ownership is verified.
+	GetApplication(ctx context.Context, in *GetApplicationRequest, opts ...grpc.CallOption) (*ApplicationProto, error)
+	// Create a new application from an approved job_feed entry.
+	// Publishes CMD_ANALYZE_JOB to Redis after creation.
+	CreateApplication(ctx context.Context, in *CreateApplicationRequest, opts ...grpc.CallOption) (*ApplicationProto, error)
 	// Move a Kanban card to a new status (state machine validated).
+	// On HIRED: archives the parent search_config (sets is_active=false, completed_at=NOW()).
 	MoveCard(ctx context.Context, in *MoveCardRequest, opts ...grpc.CallOption) (*ApplicationProto, error)
-	// Add or update the free-text note on an application.
+	// Add or replace the free-text note on an application.
 	AddNote(ctx context.Context, in *AddNoteRequest, opts ...grpc.CallOption) (*ApplicationProto, error)
 	// Set a 1–5 star rating on an application.
 	RateApplication(ctx context.Context, in *RateApplicationRequest, opts ...grpc.CallOption) (*ApplicationProto, error)
+	// Set or clear a relance reminder timestamp.
+	SetRelanceReminder(ctx context.Context, in *SetRelanceReminderRequest, opts ...grpc.CallOption) (*ApplicationProto, error)
 }
 
 type trackerServiceClient struct {
@@ -58,6 +70,26 @@ func (c *trackerServiceClient) ListApplications(ctx context.Context, in *ListApp
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ListApplicationsResponse)
 	err := c.cc.Invoke(ctx, TrackerService_ListApplications_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *trackerServiceClient) GetApplication(ctx context.Context, in *GetApplicationRequest, opts ...grpc.CallOption) (*ApplicationProto, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ApplicationProto)
+	err := c.cc.Invoke(ctx, TrackerService_GetApplication_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *trackerServiceClient) CreateApplication(ctx context.Context, in *CreateApplicationRequest, opts ...grpc.CallOption) (*ApplicationProto, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ApplicationProto)
+	err := c.cc.Invoke(ctx, TrackerService_CreateApplication_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -94,6 +126,16 @@ func (c *trackerServiceClient) RateApplication(ctx context.Context, in *RateAppl
 	return out, nil
 }
 
+func (c *trackerServiceClient) SetRelanceReminder(ctx context.Context, in *SetRelanceReminderRequest, opts ...grpc.CallOption) (*ApplicationProto, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ApplicationProto)
+	err := c.cc.Invoke(ctx, TrackerService_SetRelanceReminder_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // TrackerServiceServer is the server API for TrackerService service.
 // All implementations must embed UnimplementedTrackerServiceServer
 // for forward compatibility.
@@ -106,13 +148,22 @@ func (c *trackerServiceClient) RateApplication(ctx context.Context, in *RateAppl
 // ─────────────────────────────────────────────────────────────────────────────
 type TrackerServiceServer interface {
 	// List all applications for the authenticated user.
+	// Optional status_filter narrows to a single Kanban column.
 	ListApplications(context.Context, *ListApplicationsRequest) (*ListApplicationsResponse, error)
+	// Fetch a single application by ID. Ownership is verified.
+	GetApplication(context.Context, *GetApplicationRequest) (*ApplicationProto, error)
+	// Create a new application from an approved job_feed entry.
+	// Publishes CMD_ANALYZE_JOB to Redis after creation.
+	CreateApplication(context.Context, *CreateApplicationRequest) (*ApplicationProto, error)
 	// Move a Kanban card to a new status (state machine validated).
+	// On HIRED: archives the parent search_config (sets is_active=false, completed_at=NOW()).
 	MoveCard(context.Context, *MoveCardRequest) (*ApplicationProto, error)
-	// Add or update the free-text note on an application.
+	// Add or replace the free-text note on an application.
 	AddNote(context.Context, *AddNoteRequest) (*ApplicationProto, error)
 	// Set a 1–5 star rating on an application.
 	RateApplication(context.Context, *RateApplicationRequest) (*ApplicationProto, error)
+	// Set or clear a relance reminder timestamp.
+	SetRelanceReminder(context.Context, *SetRelanceReminderRequest) (*ApplicationProto, error)
 	mustEmbedUnimplementedTrackerServiceServer()
 }
 
@@ -126,6 +177,12 @@ type UnimplementedTrackerServiceServer struct{}
 func (UnimplementedTrackerServiceServer) ListApplications(context.Context, *ListApplicationsRequest) (*ListApplicationsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListApplications not implemented")
 }
+func (UnimplementedTrackerServiceServer) GetApplication(context.Context, *GetApplicationRequest) (*ApplicationProto, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetApplication not implemented")
+}
+func (UnimplementedTrackerServiceServer) CreateApplication(context.Context, *CreateApplicationRequest) (*ApplicationProto, error) {
+	return nil, status.Error(codes.Unimplemented, "method CreateApplication not implemented")
+}
 func (UnimplementedTrackerServiceServer) MoveCard(context.Context, *MoveCardRequest) (*ApplicationProto, error) {
 	return nil, status.Error(codes.Unimplemented, "method MoveCard not implemented")
 }
@@ -134,6 +191,9 @@ func (UnimplementedTrackerServiceServer) AddNote(context.Context, *AddNoteReques
 }
 func (UnimplementedTrackerServiceServer) RateApplication(context.Context, *RateApplicationRequest) (*ApplicationProto, error) {
 	return nil, status.Error(codes.Unimplemented, "method RateApplication not implemented")
+}
+func (UnimplementedTrackerServiceServer) SetRelanceReminder(context.Context, *SetRelanceReminderRequest) (*ApplicationProto, error) {
+	return nil, status.Error(codes.Unimplemented, "method SetRelanceReminder not implemented")
 }
 func (UnimplementedTrackerServiceServer) mustEmbedUnimplementedTrackerServiceServer() {}
 func (UnimplementedTrackerServiceServer) testEmbeddedByValue()                        {}
@@ -170,6 +230,42 @@ func _TrackerService_ListApplications_Handler(srv interface{}, ctx context.Conte
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(TrackerServiceServer).ListApplications(ctx, req.(*ListApplicationsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TrackerService_GetApplication_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetApplicationRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TrackerServiceServer).GetApplication(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TrackerService_GetApplication_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TrackerServiceServer).GetApplication(ctx, req.(*GetApplicationRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TrackerService_CreateApplication_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateApplicationRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TrackerServiceServer).CreateApplication(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TrackerService_CreateApplication_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TrackerServiceServer).CreateApplication(ctx, req.(*CreateApplicationRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -228,6 +324,24 @@ func _TrackerService_RateApplication_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _TrackerService_SetRelanceReminder_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetRelanceReminderRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TrackerServiceServer).SetRelanceReminder(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TrackerService_SetRelanceReminder_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TrackerServiceServer).SetRelanceReminder(ctx, req.(*SetRelanceReminderRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // TrackerService_ServiceDesc is the grpc.ServiceDesc for TrackerService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -240,6 +354,14 @@ var TrackerService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _TrackerService_ListApplications_Handler,
 		},
 		{
+			MethodName: "GetApplication",
+			Handler:    _TrackerService_GetApplication_Handler,
+		},
+		{
+			MethodName: "CreateApplication",
+			Handler:    _TrackerService_CreateApplication_Handler,
+		},
+		{
 			MethodName: "MoveCard",
 			Handler:    _TrackerService_MoveCard_Handler,
 		},
@@ -250,6 +372,10 @@ var TrackerService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RateApplication",
 			Handler:    _TrackerService_RateApplication_Handler,
+		},
+		{
+			MethodName: "SetRelanceReminder",
+			Handler:    _TrackerService_SetRelanceReminder_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

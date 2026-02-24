@@ -9,6 +9,7 @@ networks:
 volumes:
   postgres_data:
   redis_data:
+  cv_uploads:
 
 services:
 
@@ -42,10 +43,12 @@ services:
     env_file: .env
     environment:
       - TRACKER_GRPC_ADDR=tracker-service:9082
-      - USER_GRPC_ADDR=user-service:9081
+      - USER_GRPC_ADDR=profile-service:9081
+      - DISCOVERY_GRPC_ADDR=discovery-service:9083
     volumes:
       - ./gateway:/app
       - /app/node_modules # Preserve container node_modules
+      - ./proto:/app/../proto:ro  # shared proto definitions
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.gateway.rule=PathPrefix(`/graphql`) || PathPrefix(`/events`) || PathPrefix(`/health`)"
@@ -61,19 +64,22 @@ services:
       - internal_network
 
   # ─────────────────────────────────────────────────────────────
-  # User & Profile Service — Node.js (CV parsing delegated to Python)
+  # Profile Service — Python (replaces Node.js user-service)
   # ─────────────────────────────────────────────────────────────
-  user-service:
+  profile-service:
     build:
-      context: ./user-service
-      target: development
-    container_name: jm_user_service
+      context: ./profile-service
+    container_name: jm_profile_service
     env_file: .env
     environment:
-      - USER_GRPC_PORT=9081
+      - GRPC_PORT=9081
+      - HTTP_PORT=4001
+      - PROTO_DIR=/app/proto
+      - UPLOAD_DIR=/app/uploads
     volumes:
-      - ./user-service:/app
-      - /app/node_modules
+      - ./profile-service:/app
+      - ./proto:/app/proto:ro
+      - cv_uploads:/app/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -83,18 +89,20 @@ services:
       - internal_network
 
   # ─────────────────────────────────────────────────────────────
-  # Discovery Service — Go (Scraper + Cron scheduler)
+  # Discovery Service — Python (Adzuna scraper + manual job add gRPC)
   # ─────────────────────────────────────────────────────────────
   discovery-service:
     build:
       context: ./discovery-service
-      target: development
     container_name: jm_discovery
     env_file: .env
-    ports:
-      - "8081:8081" # Exposed locally for /trigger endpoint (dev/testing only)
+    environment:
+      - GRPC_PORT=9083
+      - HTTP_PORT=4002
+      - PROTO_DIR=/app/proto
     volumes:
-      - ./discovery-service:/app # Enable live reload with air
+      - ./discovery-service:/app
+      - ./proto:/app/proto:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -114,6 +122,7 @@ services:
     env_file: .env
     volumes:
       - ./ai-coach-service:/app
+      - cv_uploads:/app/uploads:ro  # read-only access to CV files for parsing
     depends_on:
       postgres:
         condition: service_healthy

@@ -36,6 +36,8 @@ export const typeDefs = `#graphql
     experience: JSON
     projects: JSON
     education: JSON
+    certifications: JSON
+    cvUrl: String
   }
 
   type AuthPayload {
@@ -62,6 +64,9 @@ export const typeDefs = `#graphql
     salaryMin: Int
     salaryMax: Int
     isActive: Boolean!
+    startDate: String
+    duration: String
+    coverLetterTemplate: String
     createdAt: String!
     updatedAt: String!
   }
@@ -90,8 +95,16 @@ export const typeDefs = `#graphql
     userNotes: String
     userRating: Int
     historyLog: JSON
+    jobFeedId: ID
+    searchConfigId: ID
+    relanceReminderAt: String
     createdAt: String!
     updatedAt: String!
+  }
+
+  type ManualJobResult {
+    jobFeedId: ID!
+    message: String!
   }
 
   # ────────────────────────────────────────────────
@@ -138,6 +151,7 @@ export const typeDefs = `#graphql
     experience: JSON
     projects: JSON
     education: JSON
+    certifications: JSON
   }
 
   input CreateSearchConfigInput {
@@ -148,6 +162,9 @@ export const typeDefs = `#graphql
     redFlags: [String!]
     salaryMin: Int
     salaryMax: Int
+    startDate: String
+    duration: String
+    coverLetterTemplate: String
   }
 
   input UpdateSearchConfigInput {
@@ -158,6 +175,20 @@ export const typeDefs = `#graphql
     redFlags: [String!]
     salaryMin: Int
     salaryMax: Int
+    startDate: String
+    duration: String
+    coverLetterTemplate: String
+  }
+
+  input ManualJobInput {
+    searchConfigId: ID
+    companyName: String!
+    companyDescription: String
+    location: String
+    profileWanted: String
+    startDate: String
+    duration: String
+    whyUs: String
   }
 
   # ────────────────────────────────────────────────
@@ -170,9 +201,10 @@ export const typeDefs = `#graphql
 
     # Auth-required
     me: User!
-    mySearchConfigs: [SearchConfig!]!               # Phase 1
-    jobFeed(status: JobStatus): [JobFeedItem!]!     # Phase 2 ✓
-    myApplications: [Application!]!                 # Phase 4
+    myProfile: Profile!
+    mySearchConfigs: [SearchConfig!]!
+    myApplications(status: ApplicationStatus): [Application!]!
+    jobFeed(status: JobStatus): [JobFeedItem!]!
   }
 
   # ────────────────────────────────────────────────
@@ -203,5 +235,14 @@ export const typeDefs = `#graphql
     moveCard(applicationId: ID!, newStatus: ApplicationStatus!): Application!
     addNote(applicationId: ID!, note: String!): Application!
     rateApplication(applicationId: ID!, rating: Int!): Application!
-  }
-`;
+    setRelanceReminder(applicationId: ID!, remindAt: String!): Application!
+
+    # ── Discovery (manual job add) ────────────
+    addJobByUrl(searchConfigId: ID, url: String!): ManualJobResult!
+    addJobManually(input: ManualJobInput!): ManualJobResult!
+    triggerScan: ManualJobResult!
+
+      # ── CV ────────────────────────────────────
+      parseCV(cvUrl: String!): Boolean!
+    }
+  `;

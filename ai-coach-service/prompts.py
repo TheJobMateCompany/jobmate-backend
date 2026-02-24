@@ -45,7 +45,13 @@ def cover_letter_prompt(
     full_name: str,
     profile_skills: list[str],
     profile_experience: list[dict],
+    template: str = "",
 ) -> tuple[str, str]:
+    template_section = (
+        f"\nBase your letter on this personal template provided by the candidate:\n---\n{template}\n---\n"
+        if template
+        else ""
+    )
     system = (
         "You are a professional cover letter writer. Write a concise, compelling cover letter "
         "tailored to the job and the candidate's background. "
@@ -58,7 +64,7 @@ Write a cover letter for:
 Position: {job_title} at {company}
 Candidate name: {full_name or 'the candidate'}
 Skills: {', '.join(profile_skills) or 'Not specified'}
-
+{template_section}
 Experience:
 {_format_experience(profile_experience[:3])}
 

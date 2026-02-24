@@ -14,6 +14,7 @@ import { publish } from '../lib/redis.js';
 import { signToken, requireAuth } from '../middleware/auth.js';
 import * as trackerClient from '../lib/trackerGrpc.js';
 import * as userClient from '../lib/userGrpc.js';
+import * as discoveryClient from '../lib/discoveryGrpc.js';
 
 const BCRYPT_ROUNDS = 12;
 
@@ -84,6 +85,12 @@ export const resolvers = {
       return userClient.getSearchConfigs(context.user.userId);
     },
 
+    // Profile (via profile-service gRPC)
+    myProfile: async (_parent, _args, context) => {
+      requireAuth(context);
+      return userClient.getProfile(context.user.userId);
+    },
+
     // Phase 2 — JobFeed (implemented)
     jobFeed: async (_parent, { status }, context) => {
       requireAuth(context);
@@ -112,9 +119,9 @@ export const resolvers = {
     },
 
     // Phase 4 — Applications
-    myApplications: async (_parent, _args, context) => {
+    myApplications: async (_parent, { status }, context) => {
       requireAuth(context);
-      return trackerClient.listApplications(context.user.userId);
+      return trackerClient.listApplications(context.user.userId, status ?? '');
     },
   },
 
@@ -210,20 +217,21 @@ export const resolvers = {
       requireAuth(context);
       const { userId } = context.user;
 
-      const { fullName, status, skills, experience, projects, education } = input;
+      const { fullName, status, skills, experience, projects, education, certifications } = input;
 
       const { rows } = await query(
         `UPDATE profiles SET
-           full_name      = COALESCE($1, full_name),
-           status         = COALESCE($2::profile_status, status),
-           skills_json    = COALESCE($3::jsonb, skills_json),
-           experience_json= COALESCE($4::jsonb, experience_json),
-           projects_json  = COALESCE($5::jsonb, projects_json),
-           education_json = COALESCE($6::jsonb, education_json),
-           updated_at     = NOW()
+           full_name            = COALESCE($1, full_name),
+           status               = COALESCE($2::profile_status, status),
+           skills_json          = COALESCE($3::jsonb, skills_json),
+           experience_json      = COALESCE($4::jsonb, experience_json),
+           projects_json        = COALESCE($5::jsonb, projects_json),
+           education_json       = COALESCE($6::jsonb, education_json),
+           certifications_json  = COALESCE($8::jsonb, certifications_json),
+           updated_at           = NOW()
          WHERE user_id = $7
          RETURNING id, full_name, status,
-                   skills_json, experience_json, projects_json, education_json`,
+                   skills_json, experience_json, projects_json, education_json, certifications_json, cv_url`,
         [
           fullName ?? null,
           status ?? null,
@@ -232,6 +240,7 @@ export const resolvers = {
           projects ? JSON.stringify(projects) : null,
           education ? JSON.stringify(education) : null,
           userId,
+          certifications ? JSON.stringify(certifications) : null,
         ]
       );
 
@@ -248,6 +257,8 @@ export const resolvers = {
         experience: p.experience_json,
         projects: p.projects_json,
         education: p.education_json,
+        certifications: p.certifications_json,
+        cvUrl: p.cv_url,
       };
     },
 
@@ -410,6 +421,33 @@ export const resolvers = {
     rateApplication: async (_parent, { applicationId, rating }, context) => {
       requireAuth(context);
       return trackerClient.rateApplication(context.user.userId, applicationId, rating);
+    },
+    setRelanceReminder: async (_parent, { applicationId, remindAt }, context) => {
+      requireAuth(context);
+      return trackerClient.setRelanceReminder(context.user.userId, applicationId, remindAt);
+    },
+
+    // ── Discovery ────────────────────────────────────────
+    addJobByUrl: async (_parent, { searchConfigId, url }, context) => {
+      requireAuth(context);
+      return discoveryClient.addJobByUrl(context.user.userId, searchConfigId ?? null, url);
+    },
+
+    addJobManually: async (_parent, { input }, context) => {
+      requireAuth(context);
+      return discoveryClient.addJobManually(context.user.userId, input);
+    },
+
+    triggerScan: async (_parent, _args, context) => {
+      requireAuth(context);
+      return discoveryClient.triggerScan(context.user.userId);
+    },
+
+    // ── CV ───────────────────────────────────────────────
+    parseCV: async (_parent, { cvUrl }, context) => {
+      requireAuth(context);
+      const result = await userClient.parseCV(context.user.userId, cvUrl);
+      return result.success ?? false;
     },
   },
 };

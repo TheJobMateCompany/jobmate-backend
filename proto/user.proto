@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package user;
 
-// No go_package — user-service is Node.js; proto is loaded dynamically via @grpc/proto-loader.
+// No go_package — profile-service is Python; proto is loaded dynamically.
 // The Gateway also loads this file dynamically at startup.
 
 import "google/protobuf/timestamp.proto";
@@ -11,15 +11,47 @@ import "google/protobuf/timestamp.proto";
 // Service definition
 // ─────────────────────────────────────────────────────────────
 
-service UserService {
-  // SearchConfig CRUD — x-user-id forwarded via gRPC metadata
-  rpc GetSearchConfigs(GetSearchConfigsRequest)   returns (GetSearchConfigsResponse);
+service ProfileService {
+  // ── Profile ───────────────────────────────────────────────
+  // Fetch the full profile for the authenticated user.
+  rpc GetProfile(GetProfileRequest) returns (ProfileProto);
+
+  // ── SearchConfig CRUD ──────────────────────────────────────
+  // x-user-id forwarded via gRPC metadata on all RPCs below.
+  rpc GetSearchConfigs(GetSearchConfigsRequest)     returns (GetSearchConfigsResponse);
   rpc CreateSearchConfig(CreateSearchConfigRequest) returns (SearchConfigProto);
   rpc UpdateSearchConfig(UpdateSearchConfigRequest) returns (SearchConfigProto);
   rpc DeleteSearchConfig(DeleteSearchConfigRequest) returns (DeleteSearchConfigResponse);
 
-  // CV upload — file bytes sent as a single unary call (≤ 10 MB)
+  // ── CV ───────────────────────────────────────────────────
+  // Store PDF on disk and return the cv_url.
   rpc UploadCV(UploadCVRequest) returns (UploadCVResponse);
+
+  // Trigger async CV parsing pipeline (publishes CMD_PARSE_CV to Redis).
+  // The AI Coach enriches skills/experience/education/certifications asynchronously.
+  rpc ParseCV(ParseCVRequest) returns (ParseCVResponse);
+}
+
+// ─────────────────────────────────────────────────────────────
+// Profile messages
+// ─────────────────────────────────────────────────────────────
+
+message GetProfileRequest {}
+
+message ProfileProto {
+  string id          = 1;
+  string user_id     = 2;
+  string full_name   = 3;
+  string status      = 4;  // ProfileStatus enum value as string
+  // All JSON blobs encoded as raw JSON strings for maximum flexibility
+  string skills_json         = 5;  // [{"name":"React","level":"expert"}]
+  string experience_json     = 6;  // [{"title":"...","company":"..."}]
+  string projects_json       = 7;  // [{"name":"...","description":"..."}]
+  string education_json      = 8;  // [{"degree":"...","school":"..."}]
+  string certifications_json = 9;  // [{"name":"AWS SAA","issuer":"Amazon","year":2025}]
+  string cv_url              = 10; // relative path, e.g. "/uploads/abc.pdf"
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -33,24 +65,30 @@ message GetSearchConfigsResponse {
 }
 
 message CreateSearchConfigRequest {
-  repeated string job_titles    = 1;  // required, min 1
-  repeated string locations     = 2;  // required, min 1
-  string          remote_policy = 3;  // REMOTE | HYBRID | ON_SITE (default: HYBRID)
-  repeated string keywords      = 4;
-  repeated string red_flags     = 5;
-  int32           salary_min    = 6;  // 0 = unset
-  int32           salary_max    = 7;  // 0 = unset
+  repeated string job_titles            = 1;  // required, min 1
+  repeated string locations             = 2;  // required, min 1
+  string          remote_policy         = 3;  // REMOTE | HYBRID | ON_SITE (default: HYBRID)
+  repeated string keywords              = 4;
+  repeated string red_flags             = 5;
+  int32           salary_min            = 6;  // 0 = unset
+  int32           salary_max            = 7;  // 0 = unset
+  string          start_date            = 8;  // ISO date, e.g. "2026-03-01" (empty = unset)
+  string          duration              = 9;  // e.g. "CDI", "6 months" (empty = unset)
+  string          cover_letter_template = 10; // Base text for LLM cover letter generation (optional)
 }
 
 message UpdateSearchConfigRequest {
-  string          id            = 1;  // required
-  repeated string job_titles    = 2;  // omit = keep current
-  repeated string locations     = 3;
-  string          remote_policy = 4;
-  repeated string keywords      = 5;
-  repeated string red_flags     = 6;
-  int32           salary_min    = 7;
-  int32           salary_max    = 8;
+  string          id                    = 1;  // required
+  repeated string job_titles            = 2;  // omit = keep current
+  repeated string locations             = 3;
+  string          remote_policy         = 4;
+  repeated string keywords              = 5;
+  repeated string red_flags             = 6;
+  int32           salary_min            = 7;
+  int32           salary_max            = 8;
+  string          start_date            = 9;
+  string          duration              = 10;
+  string          cover_letter_template = 11;
 }
 
 message DeleteSearchConfigRequest {
@@ -62,7 +100,7 @@ message DeleteSearchConfigResponse {
 }
 
 // ─────────────────────────────────────────────────────────────
-// CV upload messages
+// CV messages
 // ─────────────────────────────────────────────────────────────
 
 message UploadCVRequest {
@@ -76,20 +114,34 @@ message UploadCVResponse {
   string message = 2;
 }
 
+message ParseCVRequest {
+  // File path on the profile-service container (after UploadCV has saved it)
+  string cv_url   = 1;
+  string user_id  = 2;  // Target user to enrich (also in metadata, here for clarity)
+}
+
+message ParseCVResponse {
+  bool   success = 1;
+  string message = 2;  // "CV parsing queued" or error description
+}
+
 // ─────────────────────────────────────────────────────────────
 // Shared type
 // ─────────────────────────────────────────────────────────────
 
 message SearchConfigProto {
-  string id            = 1;
+  string id                    = 1;
   repeated string job_titles    = 2;
   repeated string locations     = 3;
   string remote_policy          = 4;
   repeated string keywords      = 5;
   repeated string red_flags     = 6;
-  int32  salary_min             = 7;
-  int32  salary_max             = 8;
+  int32  salary_min             = 7;  // 0 = not set
+  int32  salary_max             = 8;  // 0 = not set
   bool   is_active              = 9;
-  google.protobuf.Timestamp created_at = 10;
-  google.protobuf.Timestamp updated_at = 11;
+  string start_date             = 10; // ISO date string, empty = not set
+  string duration               = 11; // e.g. "CDI", "6 months", empty = not set
+  string cover_letter_template  = 12; // Base template text, empty = not set
+  google.protobuf.Timestamp created_at = 13;
+  google.protobuf.Timestamp updated_at = 14;
 }

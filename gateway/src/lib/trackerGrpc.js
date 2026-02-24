@@ -72,13 +72,25 @@ function call(method, request, meta) {
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 /**
- * List all applications for the given user.
+ * List all applications for the given user, optionally filtered by status.
  * @param {string} userId
+ * @param {string} [statusFilter] — optional ApplicationStatus enum value
  * @returns {Promise<object[]>} array of ApplicationProto objects (camelCase)
  */
-export async function listApplications(userId) {
-  const res = await call('listApplications', {}, userMeta(userId));
+export async function listApplications(userId, statusFilter = '') {
+  const res = await call('listApplications', { statusFilter }, userMeta(userId));
   return res.applications ?? [];
+}
+
+/**
+ * Create a new application for the given job feed entry.
+ * The tracker-service handles idempotency and publishes CMD_ANALYZE_JOB.
+ * @param {string} userId
+ * @param {string} jobFeedId
+ * @returns {Promise<object>} created ApplicationProto
+ */
+export async function createApplication(userId, jobFeedId) {
+  return call('createApplication', { jobFeedId }, userMeta(userId));
 }
 
 /**
@@ -112,4 +124,15 @@ export async function addNote(userId, applicationId, note) {
  */
 export async function rateApplication(userId, applicationId, rating) {
   return call('rateApplication', { applicationId, rating }, userMeta(userId));
+}
+
+/**
+ * Set a follow-up reminder date/time on an application.
+ * @param {string} userId
+ * @param {string} applicationId
+ * @param {string} remindAt — ISO 8601 timestamp string
+ * @returns {Promise<object>} updated ApplicationProto
+ */
+export async function setRelanceReminder(userId, applicationId, remindAt) {
+  return call('setRelanceReminder', { applicationId, remindAt }, userMeta(userId));
 }

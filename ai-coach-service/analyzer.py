@@ -47,10 +47,12 @@ async def analyze(application_id: str, user_id: str, rdb) -> None:
                 jf.source_url      AS job_url,
                 p.full_name,
                 p.skills_json      AS skills,
-                p.experience_json  AS experience
+                p.experience_json  AS experience,
+                COALESCE(sc.cover_letter_template, '') AS cover_letter_template
             FROM applications a
             JOIN job_feed jf   ON jf.id = a.job_feed_id
             JOIN profiles p    ON p.user_id = a.user_id
+            LEFT JOIN search_configs sc ON sc.id = jf.search_config_id
             WHERE a.id = $1 AND a.user_id = $2
             """,
             application_id,
@@ -73,6 +75,7 @@ async def analyze(application_id: str, user_id: str, rdb) -> None:
     description: str = raw_data.get("description", "")
     full_name: str = row["full_name"] or ""
     skills_flat: list[str] = _flatten_skills(skills)
+    cover_letter_template: str = row["cover_letter_template"] or ""
 
     logger.info(
         "Analyzing application %s — '%s' at '%s'", application_id, job_title, company
@@ -92,7 +95,13 @@ async def analyze(application_id: str, user_id: str, rdb) -> None:
 
     # ── 4. LLM: Cover Letter ───────────────────────────────────
     sys_cl, usr_cl = prompts.cover_letter_prompt(
-        job_title, company, description, full_name, skills_flat, experience
+        job_title,
+        company,
+        description,
+        full_name,
+        skills_flat,
+        experience,
+        template=cover_letter_template,
     )
     cover_letter: str | None = await llm.chat_text(sys_cl, usr_cl, temperature=0.7)
 

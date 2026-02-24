@@ -23,7 +23,10 @@ const (
 )
 
 type ListApplicationsRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// When non-empty, filters results to this Kanban column only.
+	// Valid values: TO_APPLY, APPLIED, INTERVIEW, OFFER, REJECTED, HIRED
+	StatusFilter  string `protobuf:"bytes,1,opt,name=status_filter,json=statusFilter,proto3" json:"status_filter,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -58,6 +61,102 @@ func (*ListApplicationsRequest) Descriptor() ([]byte, []int) {
 	return file_tracker_proto_rawDescGZIP(), []int{0}
 }
 
+func (x *ListApplicationsRequest) GetStatusFilter() string {
+	if x != nil {
+		return x.StatusFilter
+	}
+	return ""
+}
+
+type GetApplicationRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ApplicationId string                 `protobuf:"bytes,1,opt,name=application_id,json=applicationId,proto3" json:"application_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetApplicationRequest) Reset() {
+	*x = GetApplicationRequest{}
+	mi := &file_tracker_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetApplicationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetApplicationRequest) ProtoMessage() {}
+
+func (x *GetApplicationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_tracker_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetApplicationRequest.ProtoReflect.Descriptor instead.
+func (*GetApplicationRequest) Descriptor() ([]byte, []int) {
+	return file_tracker_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *GetApplicationRequest) GetApplicationId() string {
+	if x != nil {
+		return x.ApplicationId
+	}
+	return ""
+}
+
+type CreateApplicationRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The approved job_feed entry to create an application for.
+	JobFeedId     string `protobuf:"bytes,1,opt,name=job_feed_id,json=jobFeedId,proto3" json:"job_feed_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateApplicationRequest) Reset() {
+	*x = CreateApplicationRequest{}
+	mi := &file_tracker_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateApplicationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateApplicationRequest) ProtoMessage() {}
+
+func (x *CreateApplicationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_tracker_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateApplicationRequest.ProtoReflect.Descriptor instead.
+func (*CreateApplicationRequest) Descriptor() ([]byte, []int) {
+	return file_tracker_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *CreateApplicationRequest) GetJobFeedId() string {
+	if x != nil {
+		return x.JobFeedId
+	}
+	return ""
+}
+
 type MoveCardRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ApplicationId string                 `protobuf:"bytes,1,opt,name=application_id,json=applicationId,proto3" json:"application_id,omitempty"`
@@ -70,7 +169,7 @@ type MoveCardRequest struct {
 
 func (x *MoveCardRequest) Reset() {
 	*x = MoveCardRequest{}
-	mi := &file_tracker_proto_msgTypes[1]
+	mi := &file_tracker_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -82,7 +181,7 @@ func (x *MoveCardRequest) String() string {
 func (*MoveCardRequest) ProtoMessage() {}
 
 func (x *MoveCardRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tracker_proto_msgTypes[1]
+	mi := &file_tracker_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -95,7 +194,7 @@ func (x *MoveCardRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MoveCardRequest.ProtoReflect.Descriptor instead.
 func (*MoveCardRequest) Descriptor() ([]byte, []int) {
-	return file_tracker_proto_rawDescGZIP(), []int{1}
+	return file_tracker_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *MoveCardRequest) GetApplicationId() string {
@@ -122,7 +221,7 @@ type AddNoteRequest struct {
 
 func (x *AddNoteRequest) Reset() {
 	*x = AddNoteRequest{}
-	mi := &file_tracker_proto_msgTypes[2]
+	mi := &file_tracker_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -134,7 +233,7 @@ func (x *AddNoteRequest) String() string {
 func (*AddNoteRequest) ProtoMessage() {}
 
 func (x *AddNoteRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tracker_proto_msgTypes[2]
+	mi := &file_tracker_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -147,7 +246,7 @@ func (x *AddNoteRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddNoteRequest.ProtoReflect.Descriptor instead.
 func (*AddNoteRequest) Descriptor() ([]byte, []int) {
-	return file_tracker_proto_rawDescGZIP(), []int{2}
+	return file_tracker_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *AddNoteRequest) GetApplicationId() string {
@@ -174,7 +273,7 @@ type RateApplicationRequest struct {
 
 func (x *RateApplicationRequest) Reset() {
 	*x = RateApplicationRequest{}
-	mi := &file_tracker_proto_msgTypes[3]
+	mi := &file_tracker_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -186,7 +285,7 @@ func (x *RateApplicationRequest) String() string {
 func (*RateApplicationRequest) ProtoMessage() {}
 
 func (x *RateApplicationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tracker_proto_msgTypes[3]
+	mi := &file_tracker_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -199,7 +298,7 @@ func (x *RateApplicationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RateApplicationRequest.ProtoReflect.Descriptor instead.
 func (*RateApplicationRequest) Descriptor() ([]byte, []int) {
-	return file_tracker_proto_rawDescGZIP(), []int{3}
+	return file_tracker_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *RateApplicationRequest) GetApplicationId() string {
@@ -216,6 +315,59 @@ func (x *RateApplicationRequest) GetRating() int32 {
 	return 0
 }
 
+type SetRelanceReminderRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ApplicationId string                 `protobuf:"bytes,1,opt,name=application_id,json=applicationId,proto3" json:"application_id,omitempty"`
+	// ISO 8601 timestamp string. Empty string = clear the reminder.
+	RemindAt      string `protobuf:"bytes,2,opt,name=remind_at,json=remindAt,proto3" json:"remind_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetRelanceReminderRequest) Reset() {
+	*x = SetRelanceReminderRequest{}
+	mi := &file_tracker_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetRelanceReminderRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetRelanceReminderRequest) ProtoMessage() {}
+
+func (x *SetRelanceReminderRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_tracker_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetRelanceReminderRequest.ProtoReflect.Descriptor instead.
+func (*SetRelanceReminderRequest) Descriptor() ([]byte, []int) {
+	return file_tracker_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *SetRelanceReminderRequest) GetApplicationId() string {
+	if x != nil {
+		return x.ApplicationId
+	}
+	return ""
+}
+
+func (x *SetRelanceReminderRequest) GetRemindAt() string {
+	if x != nil {
+		return x.RemindAt
+	}
+	return ""
+}
+
 type ListApplicationsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Applications  []*ApplicationProto    `protobuf:"bytes,1,rep,name=applications,proto3" json:"applications,omitempty"`
@@ -225,7 +377,7 @@ type ListApplicationsResponse struct {
 
 func (x *ListApplicationsResponse) Reset() {
 	*x = ListApplicationsResponse{}
-	mi := &file_tracker_proto_msgTypes[4]
+	mi := &file_tracker_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -237,7 +389,7 @@ func (x *ListApplicationsResponse) String() string {
 func (*ListApplicationsResponse) ProtoMessage() {}
 
 func (x *ListApplicationsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_tracker_proto_msgTypes[4]
+	mi := &file_tracker_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -250,7 +402,7 @@ func (x *ListApplicationsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListApplicationsResponse.ProtoReflect.Descriptor instead.
 func (*ListApplicationsResponse) Descriptor() ([]byte, []int) {
-	return file_tracker_proto_rawDescGZIP(), []int{4}
+	return file_tracker_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ListApplicationsResponse) GetApplications() []*ApplicationProto {
@@ -274,16 +426,21 @@ type ApplicationProto struct {
 	GeneratedCoverLetter string `protobuf:"bytes,4,opt,name=generated_cover_letter,json=generatedCoverLetter,proto3" json:"generated_cover_letter,omitempty"`
 	UserNotes            string `protobuf:"bytes,5,opt,name=user_notes,json=userNotes,proto3" json:"user_notes,omitempty"`
 	// Nullable int32 — 0 means unrated
-	UserRating    int32                  `protobuf:"varint,6,opt,name=user_rating,json=userRating,proto3" json:"user_rating,omitempty"`
-	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	UserRating int32                  `protobuf:"varint,6,opt,name=user_rating,json=userRating,proto3" json:"user_rating,omitempty"`
+	CreatedAt  *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt  *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	// Relational context — used by Gateway for archiveSearchConfig + UI deep links
+	JobFeedId      string `protobuf:"bytes,10,opt,name=job_feed_id,json=jobFeedId,proto3" json:"job_feed_id,omitempty"`                // empty if job_feed was deleted
+	SearchConfigId string `protobuf:"bytes,11,opt,name=search_config_id,json=searchConfigId,proto3" json:"search_config_id,omitempty"` // derived via job_feed.search_config_id (empty if manual/deleted)
+	// Relance reminder — empty string = not set
+	RelanceReminderAt string `protobuf:"bytes,12,opt,name=relance_reminder_at,json=relanceReminderAt,proto3" json:"relance_reminder_at,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *ApplicationProto) Reset() {
 	*x = ApplicationProto{}
-	mi := &file_tracker_proto_msgTypes[5]
+	mi := &file_tracker_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -295,7 +452,7 @@ func (x *ApplicationProto) String() string {
 func (*ApplicationProto) ProtoMessage() {}
 
 func (x *ApplicationProto) ProtoReflect() protoreflect.Message {
-	mi := &file_tracker_proto_msgTypes[5]
+	mi := &file_tracker_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -308,7 +465,7 @@ func (x *ApplicationProto) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApplicationProto.ProtoReflect.Descriptor instead.
 func (*ApplicationProto) Descriptor() ([]byte, []int) {
-	return file_tracker_proto_rawDescGZIP(), []int{5}
+	return file_tracker_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ApplicationProto) GetId() string {
@@ -374,12 +531,38 @@ func (x *ApplicationProto) GetUpdatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *ApplicationProto) GetJobFeedId() string {
+	if x != nil {
+		return x.JobFeedId
+	}
+	return ""
+}
+
+func (x *ApplicationProto) GetSearchConfigId() string {
+	if x != nil {
+		return x.SearchConfigId
+	}
+	return ""
+}
+
+func (x *ApplicationProto) GetRelanceReminderAt() string {
+	if x != nil {
+		return x.RelanceReminderAt
+	}
+	return ""
+}
+
 var File_tracker_proto protoreflect.FileDescriptor
 
 const file_tracker_proto_rawDesc = "" +
 	"\n" +
-	"\rtracker.proto\x12\atracker\x1a\x1fgoogle/protobuf/timestamp.proto\"\x19\n" +
-	"\x17ListApplicationsRequest\"W\n" +
+	"\rtracker.proto\x12\atracker\x1a\x1fgoogle/protobuf/timestamp.proto\">\n" +
+	"\x17ListApplicationsRequest\x12#\n" +
+	"\rstatus_filter\x18\x01 \x01(\tR\fstatusFilter\">\n" +
+	"\x15GetApplicationRequest\x12%\n" +
+	"\x0eapplication_id\x18\x01 \x01(\tR\rapplicationId\":\n" +
+	"\x18CreateApplicationRequest\x12\x1e\n" +
+	"\vjob_feed_id\x18\x01 \x01(\tR\tjobFeedId\"W\n" +
 	"\x0fMoveCardRequest\x12%\n" +
 	"\x0eapplication_id\x18\x01 \x01(\tR\rapplicationId\x12\x1d\n" +
 	"\n" +
@@ -389,9 +572,12 @@ const file_tracker_proto_rawDesc = "" +
 	"\x04note\x18\x02 \x01(\tR\x04note\"W\n" +
 	"\x16RateApplicationRequest\x12%\n" +
 	"\x0eapplication_id\x18\x01 \x01(\tR\rapplicationId\x12\x16\n" +
-	"\x06rating\x18\x02 \x01(\x05R\x06rating\"Y\n" +
+	"\x06rating\x18\x02 \x01(\x05R\x06rating\"_\n" +
+	"\x19SetRelanceReminderRequest\x12%\n" +
+	"\x0eapplication_id\x18\x01 \x01(\tR\rapplicationId\x12\x1b\n" +
+	"\tremind_at\x18\x02 \x01(\tR\bremindAt\"Y\n" +
 	"\x18ListApplicationsResponse\x12=\n" +
-	"\fapplications\x18\x01 \x03(\v2\x19.tracker.ApplicationProtoR\fapplications\"\xf7\x02\n" +
+	"\fapplications\x18\x01 \x03(\v2\x19.tracker.ApplicationProtoR\fapplications\"\xf1\x03\n" +
 	"\x10ApplicationProto\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12%\n" +
 	"\x0ecurrent_status\x18\x02 \x01(\tR\rcurrentStatus\x12\x1f\n" +
@@ -407,12 +593,19 @@ const file_tracker_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt2\xb8\x02\n" +
+	"updated_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x1e\n" +
+	"\vjob_feed_id\x18\n" +
+	" \x01(\tR\tjobFeedId\x12(\n" +
+	"\x10search_config_id\x18\v \x01(\tR\x0esearchConfigId\x12.\n" +
+	"\x13relance_reminder_at\x18\f \x01(\tR\x11relanceReminderAt2\xad\x04\n" +
 	"\x0eTrackerService\x12W\n" +
-	"\x10ListApplications\x12 .tracker.ListApplicationsRequest\x1a!.tracker.ListApplicationsResponse\x12?\n" +
+	"\x10ListApplications\x12 .tracker.ListApplicationsRequest\x1a!.tracker.ListApplicationsResponse\x12K\n" +
+	"\x0eGetApplication\x12\x1e.tracker.GetApplicationRequest\x1a\x19.tracker.ApplicationProto\x12Q\n" +
+	"\x11CreateApplication\x12!.tracker.CreateApplicationRequest\x1a\x19.tracker.ApplicationProto\x12?\n" +
 	"\bMoveCard\x12\x18.tracker.MoveCardRequest\x1a\x19.tracker.ApplicationProto\x12=\n" +
 	"\aAddNote\x12\x17.tracker.AddNoteRequest\x1a\x19.tracker.ApplicationProto\x12M\n" +
-	"\x0fRateApplication\x12\x1f.tracker.RateApplicationRequest\x1a\x19.tracker.ApplicationProtoB(Z&jobmate/tracker-service/internal/pb;pbb\x06proto3"
+	"\x0fRateApplication\x12\x1f.tracker.RateApplicationRequest\x1a\x19.tracker.ApplicationProto\x12S\n" +
+	"\x12SetRelanceReminder\x12\".tracker.SetRelanceReminderRequest\x1a\x19.tracker.ApplicationProtoB(Z&jobmate/tracker-service/internal/pb;pbb\x06proto3"
 
 var (
 	file_tracker_proto_rawDescOnce sync.Once
@@ -426,33 +619,42 @@ func file_tracker_proto_rawDescGZIP() []byte {
 	return file_tracker_proto_rawDescData
 }
 
-var file_tracker_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_tracker_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_tracker_proto_goTypes = []any{
-	(*ListApplicationsRequest)(nil),  // 0: tracker.ListApplicationsRequest
-	(*MoveCardRequest)(nil),          // 1: tracker.MoveCardRequest
-	(*AddNoteRequest)(nil),           // 2: tracker.AddNoteRequest
-	(*RateApplicationRequest)(nil),   // 3: tracker.RateApplicationRequest
-	(*ListApplicationsResponse)(nil), // 4: tracker.ListApplicationsResponse
-	(*ApplicationProto)(nil),         // 5: tracker.ApplicationProto
-	(*timestamppb.Timestamp)(nil),    // 6: google.protobuf.Timestamp
+	(*ListApplicationsRequest)(nil),   // 0: tracker.ListApplicationsRequest
+	(*GetApplicationRequest)(nil),     // 1: tracker.GetApplicationRequest
+	(*CreateApplicationRequest)(nil),  // 2: tracker.CreateApplicationRequest
+	(*MoveCardRequest)(nil),           // 3: tracker.MoveCardRequest
+	(*AddNoteRequest)(nil),            // 4: tracker.AddNoteRequest
+	(*RateApplicationRequest)(nil),    // 5: tracker.RateApplicationRequest
+	(*SetRelanceReminderRequest)(nil), // 6: tracker.SetRelanceReminderRequest
+	(*ListApplicationsResponse)(nil),  // 7: tracker.ListApplicationsResponse
+	(*ApplicationProto)(nil),          // 8: tracker.ApplicationProto
+	(*timestamppb.Timestamp)(nil),     // 9: google.protobuf.Timestamp
 }
 var file_tracker_proto_depIdxs = []int32{
-	5, // 0: tracker.ListApplicationsResponse.applications:type_name -> tracker.ApplicationProto
-	6, // 1: tracker.ApplicationProto.created_at:type_name -> google.protobuf.Timestamp
-	6, // 2: tracker.ApplicationProto.updated_at:type_name -> google.protobuf.Timestamp
-	0, // 3: tracker.TrackerService.ListApplications:input_type -> tracker.ListApplicationsRequest
-	1, // 4: tracker.TrackerService.MoveCard:input_type -> tracker.MoveCardRequest
-	2, // 5: tracker.TrackerService.AddNote:input_type -> tracker.AddNoteRequest
-	3, // 6: tracker.TrackerService.RateApplication:input_type -> tracker.RateApplicationRequest
-	4, // 7: tracker.TrackerService.ListApplications:output_type -> tracker.ListApplicationsResponse
-	5, // 8: tracker.TrackerService.MoveCard:output_type -> tracker.ApplicationProto
-	5, // 9: tracker.TrackerService.AddNote:output_type -> tracker.ApplicationProto
-	5, // 10: tracker.TrackerService.RateApplication:output_type -> tracker.ApplicationProto
-	7, // [7:11] is the sub-list for method output_type
-	3, // [3:7] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	8,  // 0: tracker.ListApplicationsResponse.applications:type_name -> tracker.ApplicationProto
+	9,  // 1: tracker.ApplicationProto.created_at:type_name -> google.protobuf.Timestamp
+	9,  // 2: tracker.ApplicationProto.updated_at:type_name -> google.protobuf.Timestamp
+	0,  // 3: tracker.TrackerService.ListApplications:input_type -> tracker.ListApplicationsRequest
+	1,  // 4: tracker.TrackerService.GetApplication:input_type -> tracker.GetApplicationRequest
+	2,  // 5: tracker.TrackerService.CreateApplication:input_type -> tracker.CreateApplicationRequest
+	3,  // 6: tracker.TrackerService.MoveCard:input_type -> tracker.MoveCardRequest
+	4,  // 7: tracker.TrackerService.AddNote:input_type -> tracker.AddNoteRequest
+	5,  // 8: tracker.TrackerService.RateApplication:input_type -> tracker.RateApplicationRequest
+	6,  // 9: tracker.TrackerService.SetRelanceReminder:input_type -> tracker.SetRelanceReminderRequest
+	7,  // 10: tracker.TrackerService.ListApplications:output_type -> tracker.ListApplicationsResponse
+	8,  // 11: tracker.TrackerService.GetApplication:output_type -> tracker.ApplicationProto
+	8,  // 12: tracker.TrackerService.CreateApplication:output_type -> tracker.ApplicationProto
+	8,  // 13: tracker.TrackerService.MoveCard:output_type -> tracker.ApplicationProto
+	8,  // 14: tracker.TrackerService.AddNote:output_type -> tracker.ApplicationProto
+	8,  // 15: tracker.TrackerService.RateApplication:output_type -> tracker.ApplicationProto
+	8,  // 16: tracker.TrackerService.SetRelanceReminder:output_type -> tracker.ApplicationProto
+	10, // [10:17] is the sub-list for method output_type
+	3,  // [3:10] is the sub-list for method input_type
+	3,  // [3:3] is the sub-list for extension type_name
+	3,  // [3:3] is the sub-list for extension extendee
+	0,  // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_tracker_proto_init() }
@@ -466,7 +668,7 @@ func file_tracker_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_tracker_proto_rawDesc), len(file_tracker_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

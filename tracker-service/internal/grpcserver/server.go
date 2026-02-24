@@ -39,7 +39,7 @@ func (s *Server) ListApplications(ctx context.Context, req *pb.ListApplicationsR
 		return nil, err
 	}
 
-	apps, err := s.svc.ListApplications(ctx, userID)
+	apps, err := s.svc.ListApplications(ctx, userID, req.StatusFilter)
 	if err != nil {
 		return nil, toGRPCError(err)
 	}
@@ -97,6 +97,51 @@ func (s *Server) RateApplication(ctx context.Context, req *pb.RateApplicationReq
 	return appToProto(app), nil
 }
 
+// GetApplication returns a single application by ID.
+func (s *Server) GetApplication(ctx context.Context, req *pb.GetApplicationRequest) (*pb.ApplicationProto, error) {
+	userID, err := userIDFromCtx(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	app, err := s.svc.GetApplication(ctx, userID, req.ApplicationId)
+	if err != nil {
+		return nil, toGRPCError(err)
+	}
+
+	return appToProto(app), nil
+}
+
+// CreateApplication creates a new application for the given job feed entry.
+func (s *Server) CreateApplication(ctx context.Context, req *pb.CreateApplicationRequest) (*pb.ApplicationProto, error) {
+	userID, err := userIDFromCtx(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	app, err := s.svc.CreateApplication(ctx, userID, req.JobFeedId)
+	if err != nil {
+		return nil, toGRPCError(err)
+	}
+
+	return appToProto(app), nil
+}
+
+// SetRelanceReminder sets the follow-up reminder timestamp on an application.
+func (s *Server) SetRelanceReminder(ctx context.Context, req *pb.SetRelanceReminderRequest) (*pb.ApplicationProto, error) {
+	userID, err := userIDFromCtx(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	app, err := s.svc.SetRelanceReminder(ctx, userID, req.ApplicationId, req.RemindAt)
+	if err != nil {
+		return nil, toGRPCError(err)
+	}
+
+	return appToProto(app), nil
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 // userIDFromCtx extracts the x-user-id value forwarded by the Gateway
@@ -126,16 +171,16 @@ func toGRPCError(err error) error {
 }
 
 // appToProto converts a kanban.Application to its proto representation.
-// Optional fields (GeneratedCoverLetter, UserNotes, UserRating) are handled
-// safely as they may be nil.
 func appToProto(a *kanban.Application) *pb.ApplicationProto {
 	p := &pb.ApplicationProto{
-		Id:            a.ID,
-		CurrentStatus: a.CurrentStatus,
-		AiAnalysis:    []byte(a.AIAnalysis),
-		HistoryLog:    []byte(a.HistoryLog),
-		CreatedAt:     timestamppb.New(a.CreatedAt),
-		UpdatedAt:     timestamppb.New(a.UpdatedAt),
+		Id:             a.ID,
+		CurrentStatus:  a.CurrentStatus,
+		AiAnalysis:     []byte(a.AIAnalysis),
+		HistoryLog:     []byte(a.HistoryLog),
+		JobFeedId:      a.JobFeedID,
+		SearchConfigId: a.SearchConfigID,
+		CreatedAt:      timestamppb.New(a.CreatedAt),
+		UpdatedAt:      timestamppb.New(a.UpdatedAt),
 	}
 
 	if a.GeneratedCoverLetter != nil {
@@ -146,6 +191,9 @@ func appToProto(a *kanban.Application) *pb.ApplicationProto {
 	}
 	if a.UserRating != nil {
 		p.UserRating = *a.UserRating
+	}
+	if a.RelanceReminderAt != nil {
+		p.RelanceReminderAt = a.RelanceReminderAt.UTC().Format("2006-01-02T15:04:05Z")
 	}
 
 	return p

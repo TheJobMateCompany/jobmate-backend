@@ -14,23 +14,48 @@ import "google/protobuf/timestamp.proto";
 // ─────────────────────────────────────────────────────────────────────────────
 service TrackerService {
   // List all applications for the authenticated user.
+  // Optional status_filter narrows to a single Kanban column.
   rpc ListApplications(ListApplicationsRequest) returns (ListApplicationsResponse);
 
+  // Fetch a single application by ID. Ownership is verified.
+  rpc GetApplication(GetApplicationRequest) returns (ApplicationProto);
+
+  // Create a new application from an approved job_feed entry.
+  // Publishes CMD_ANALYZE_JOB to Redis after creation.
+  rpc CreateApplication(CreateApplicationRequest) returns (ApplicationProto);
+
   // Move a Kanban card to a new status (state machine validated).
+  // On HIRED: archives the parent search_config (sets is_active=false, completed_at=NOW()).
   rpc MoveCard(MoveCardRequest) returns (ApplicationProto);
 
-  // Add or update the free-text note on an application.
+  // Add or replace the free-text note on an application.
   rpc AddNote(AddNoteRequest) returns (ApplicationProto);
 
   // Set a 1–5 star rating on an application.
   rpc RateApplication(RateApplicationRequest) returns (ApplicationProto);
+
+  // Set or clear a relance reminder timestamp.
+  rpc SetRelanceReminder(SetRelanceReminderRequest) returns (ApplicationProto);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Requests
 // ─────────────────────────────────────────────────────────────────────────────
 
-message ListApplicationsRequest {}
+message ListApplicationsRequest {
+  // When non-empty, filters results to this Kanban column only.
+  // Valid values: TO_APPLY, APPLIED, INTERVIEW, OFFER, REJECTED, HIRED
+  string status_filter = 1;
+}
+
+message GetApplicationRequest {
+  string application_id = 1;
+}
+
+message CreateApplicationRequest {
+  // The approved job_feed entry to create an application for.
+  string job_feed_id = 1;
+}
 
 message MoveCardRequest {
   string application_id = 1;
@@ -47,6 +72,12 @@ message AddNoteRequest {
 message RateApplicationRequest {
   string application_id = 1;
   int32  rating         = 2; // 1–5
+}
+
+message SetRelanceReminderRequest {
+  string application_id = 1;
+  // ISO 8601 timestamp string. Empty string = clear the reminder.
+  string remind_at = 2;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -77,4 +108,11 @@ message ApplicationProto {
 
   google.protobuf.Timestamp created_at = 8;
   google.protobuf.Timestamp updated_at = 9;
+
+  // Relational context — used by Gateway for archiveSearchConfig + UI deep links
+  string job_feed_id      = 10; // empty if job_feed was deleted
+  string search_config_id = 11; // derived via job_feed.search_config_id (empty if manual/deleted)
+
+  // Relance reminder — empty string = not set
+  string relance_reminder_at = 12;
 }

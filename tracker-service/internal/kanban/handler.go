@@ -17,6 +17,9 @@ type Application struct {
 	UserNotes            *string         `json:"userNotes"`
 	UserRating           *int32          `json:"userRating"`
 	HistoryLog           json.RawMessage `json:"historyLog"`
+	JobFeedID            string          `json:"jobFeedId"`
+	SearchConfigID       string          `json:"searchConfigId"`
+	RelanceReminderAt    *time.Time      `json:"relanceReminderAt"`
 	CreatedAt            time.Time       `json:"createdAt"`
 	UpdatedAt            time.Time       `json:"updatedAt"`
 }

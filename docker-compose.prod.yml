@@ -13,6 +13,7 @@ volumes:
   postgres_data:
   redis_data:
   traefik_certs:
+  cv_uploads:
 
 services:
 
@@ -53,7 +54,8 @@ services:
     env_file: .env
     environment:
       - TRACKER_GRPC_ADDR=tracker-service:9082
-      - USER_GRPC_ADDR=user-service:9081
+      - USER_GRPC_ADDR=profile-service:9081
+      - DISCOVERY_GRPC_ADDR=discovery-service:9083
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=jobmate-backend_web_network"
@@ -85,14 +87,18 @@ services:
       - internal_network
 
   # ─────────────────────────────────────────────────────────────
-  # User & Profile Service
+  # Profile Service — Python (replaces Node.js user-service)
   # ─────────────────────────────────────────────────────────────
-  user-service:
-    image: ghcr.io/${GHCR_ORG}/jobmate-user-service:${IMAGE_TAG:-latest}
-    container_name: jm_user_service
+  profile-service:
+    image: ghcr.io/${GHCR_ORG}/jobmate-profile-service:${IMAGE_TAG:-latest}
+    container_name: jm_profile
     env_file: .env
     environment:
-      - USER_GRPC_PORT=9081
+      - GRPC_PORT=9081
+      - HTTP_PORT=4001
+      - UPLOAD_DIR=/app/uploads
+    volumes:
+      - cv_uploads:/app/uploads
     deploy:
       resources:
         limits:
@@ -108,19 +114,22 @@ services:
       - internal_network
 
   # ─────────────────────────────────────────────────────────────
-  # Discovery Service — Go binary, very low memory footprint
+  # Discovery Service — Python (scraper + gRPC)
   # ─────────────────────────────────────────────────────────────
   discovery-service:
     image: ghcr.io/${GHCR_ORG}/jobmate-discovery-service:${IMAGE_TAG:-latest}
     container_name: jm_discovery
     env_file: .env
+    environment:
+      - GRPC_PORT=9083
+      - HTTP_PORT=4002
     deploy:
       resources:
         limits:
-          memory: 256M
-          cpus: "0.50"
+          memory: 512M
+          cpus: "0.75"
         reservations:
-          memory: 64M
+          memory: 128M
     depends_on:
       - postgres
       - redis
@@ -136,6 +145,10 @@ services:
     image: ghcr.io/${GHCR_ORG}/jobmate-ai-coach-service:${IMAGE_TAG:-latest}
     container_name: jm_ai_coach
     env_file: .env
+    environment:
+      - UPLOAD_DIR=/app/uploads
+    volumes:
+      - cv_uploads:/app/uploads:ro
     deploy:
       resources:
         limits:

@@ -1,0 +1,78 @@
+syntax = "proto3";
+
+package discovery;
+
+// No go_package — discovery-service is Python; proto loaded dynamically.
+// The Gateway loads this file dynamically at startup.
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DiscoveryService — job acquisition and manual job submission
+//
+// All RPCs require x-user-id in gRPC metadata (set by Gateway after JWT check).
+// ─────────────────────────────────────────────────────────────────────────────
+
+service DiscoveryService {
+  // Add a job by URL: Discovery scrapes the URL, applies red-flag filter,
+  // inserts as APPROVED (is_manual=true), publishes JOB_APPROVED to Redis.
+  rpc AddJobByUrl(AddJobByUrlRequest) returns (AddJobByUrlResponse);
+
+  // Add a job manually via form fields: inserts as APPROVED immediately,
+  // publishes JOB_APPROVED to Redis.
+  rpc AddJobManually(AddJobManuallyRequest) returns (AddJobManuallyResponse);
+
+  // Trigger an immediate scrape cycle for all active search configs.
+  // Useful for manual refresh from the UI. Returns count of new jobs found.
+  rpc TriggerScan(TriggerScanRequest) returns (TriggerScanResponse);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AddJobByUrl
+// ─────────────────────────────────────────────────────────────────────────────
+
+message AddJobByUrlRequest {
+  // The search config this job belongs to (must be owned by x-user-id).
+  string search_config_id = 1;
+  // URL of the job posting to scrape.
+  string url = 2;
+}
+
+message AddJobByUrlResponse {
+  string job_feed_id = 1;
+  string message     = 2;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AddJobManually
+// ─────────────────────────────────────────────────────────────────────────────
+
+message AddJobManuallyRequest {
+  // The search config this job belongs to (must be owned by x-user-id).
+  string search_config_id     = 1;
+  string company_name         = 2;  // required
+  string company_description  = 3;
+  string location             = 4;
+  string profile_wanted       = 5;  // Job description / required profile text
+  string start_date           = 6;  // ISO date string, e.g. "2026-04-01"
+  string duration             = 7;  // e.g. "CDI", "6 months"
+  string why_us               = 8;  // Company's pitch to the candidate
+}
+
+message AddJobManuallyResponse {
+  string job_feed_id = 1;
+  string message     = 2;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TriggerScan
+// ─────────────────────────────────────────────────────────────────────────────
+
+message TriggerScanRequest {
+  // Optional: scope scan to a single user's search configs.
+  // Empty = scan all active configs for all users (admin use).
+  string user_id = 1;
+}
+
+message TriggerScanResponse {
+  int32  jobs_found = 1;
+  string message    = 2;
+}
