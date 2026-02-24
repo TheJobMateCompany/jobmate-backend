@@ -83,7 +83,7 @@ jobs:
         uses: golangci/golangci-lint-action@v6
         with:
           working-directory: tracker-service
-          version: latest
+          version: v1.64.8  # v1 schema — upgrade to v2 requires config rewrite
 
       # ── Python service (ai-coach) ──────────────────────────
       - name: Setup Python
