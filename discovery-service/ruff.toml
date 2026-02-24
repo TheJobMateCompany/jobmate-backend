@@ -1,0 +1,18 @@
+# Ruff configuration for discovery-service
+target-version = "py312"
+line-length = 100
+
+include = ["src/**/*.py", "tests/**/*.py"]
+extend-exclude = ["__pycache__", ".venv"]
+
+[lint]
+select = ["E", "F", "I", "UP"]
+ignore = ["E501"]
+
+[lint.isort]
+known-first-party = ["config", "database", "redis_client", "grpc_server", "scraper", "url_scraper", "scheduler"]
+
+[format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"

@@ -1,4 +1,4 @@
-FROM python:3.12-slim
+FROM python:3.12-slim AS production
 
 WORKDIR /app
 
@@ -10,8 +10,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy Python source files only
-COPY *.py ./
-COPY ruff.toml* ./
+COPY src/ .
 
 # Proto definitions mounted via docker-compose volume at /app/proto
 

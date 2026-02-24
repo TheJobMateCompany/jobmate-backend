@@ -9,8 +9,9 @@ import pytest
 import sys
 import os
 
-# Allow importing from ai-coach-service root
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Allow importing from ai-coach-service/src
+_SERVICE_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(_SERVICE_ROOT, "src"))
 
 import match_score as ms
 

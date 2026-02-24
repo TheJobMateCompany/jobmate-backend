@@ -28,7 +28,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # ── Node.js services (gateway, user-service) ──────────
+      # ── Node.js services (gateway) ────────────────────────
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -38,11 +38,10 @@ jobs:
 
       - name: Cache npm dependencies
         uses: actions/cache@v4
-        # hashFiles returns an empty string (no-op) if no lock files exist — safe.
-        if: hashFiles('gateway/package-lock.json', 'user-service/package-lock.json') != ''
+        if: hashFiles('gateway/package-lock.json') != ''
         with:
           path: ~/.npm
-          key: ${{ runner.os }}-npm-${{ hashFiles('gateway/package-lock.json', 'user-service/package-lock.json') }}
+          key: ${{ runner.os }}-npm-${{ hashFiles('gateway/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-npm-
 
@@ -52,13 +51,6 @@ jobs:
           npm install
           npm run lint
           npm test
-
-      - name: Install & lint user-service
-        working-directory: ./user-service
-        run: |
-          npm install
-          npm run lint --if-present
-          npm test --if-present
 
       # ── Go services (discovery, tracker) ──────────────────
       - name: Setup Go
@@ -78,19 +70,8 @@ jobs:
           protoc --proto_path=proto \
             --descriptor_set_out=/dev/null \
             proto/tracker.proto \
-            proto/user.proto
-
-      - name: Lint & test discovery-service
-        working-directory: ./discovery-service
-        run: |
-          go vet ./...
-          go test ./...
-
-      - name: golangci-lint discovery-service
-        uses: golangci/golangci-lint-action@v6
-        with:
-          working-directory: discovery-service
-          version: latest
+            proto/user.proto \
+            proto/discovery.proto
 
       - name: Lint & test tracker-service
         working-directory: ./tracker-service
@@ -110,12 +91,28 @@ jobs:
         with:
           python-version: "3.12"
           cache: "pip"
-          cache-dependency-path: ai-coach-service/requirements.txt
+          cache-dependency-path: |
+            ai-coach-service/requirements.txt
+            profile-service/requirements.txt
+            discovery-service/requirements.txt
+
+      - name: Install & lint profile-service
+        working-directory: ./profile-service
+        run: |
+          pip install --quiet -r requirements.txt
+          ruff check .
+
+      - name: Install & lint discovery-service
+        working-directory: ./discovery-service
+        run: |
+          pip install --quiet -r requirements.txt
+          ruff check .
 
       - name: Install & lint ai-coach-service
         working-directory: ./ai-coach-service
         run: |
-          pip install --quiet ruff pytest pytest-asyncio python-json-logger
+          pip install --quiet -r requirements.txt ruff
+          python -m spacy download en_core_web_sm --quiet
           ruff check .
           pytest tests/ -q
 
@@ -140,8 +137,8 @@ jobs:
         service:
           - name: gateway
             context: ./gateway
-          - name: user-service
-            context: ./user-service
+          - name: profile-service
+            context: ./profile-service
           - name: discovery-service
             context: ./discovery-service
           - name: ai-coach-service

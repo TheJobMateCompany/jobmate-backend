@@ -4,7 +4,7 @@ WORKDIR /app
 # Install dependencies first (layer cache optimization)
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
-COPY . .
+COPY src/ .
 EXPOSE 8083
 CMD ["python", "-u", "main.py"]
 
@@ -21,7 +21,7 @@ FROM python:3.12-slim AS production
 WORKDIR /app
 # Copy pre-installed packages from builder
 COPY --from=builder /install /usr/local
-COPY . .
+COPY src/ .
 EXPOSE 8083
 # Run as non-root
 RUN useradd -m jobmate

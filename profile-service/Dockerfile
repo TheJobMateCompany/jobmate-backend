@@ -1,4 +1,4 @@
-FROM python:3.12-slim
+FROM python:3.12-slim AS production
 
 WORKDIR /app
 
@@ -10,7 +10,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy service code
-COPY . .
+COPY src/ .
 
 # Copy proto definitions (mounted at /app/proto in compose)
 # Volume handled in docker-compose.yml

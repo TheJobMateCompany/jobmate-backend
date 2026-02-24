@@ -5,7 +5,7 @@
 target-version = "py312"
 
 # Files to lint
-include = ["*.py", "**/*.py"]
+include = ["src/**/*.py", "tests/**/*.py"]
 extend-exclude = [
     "__pycache__",
     ".venv",
@@ -33,7 +33,7 @@ ignore = [
 ]
 
 [lint.isort]
-known-first-party = ["config", "database", "llm", "prompts", "match_score", "analyzer", "redis_consumer"]
+known-first-party = ["config", "database", "llm", "prompts", "match_score", "analyzer", "redis_consumer", "cv_parser"]
 
 [format]
 # Black-compatible formatting
