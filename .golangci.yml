@@ -4,15 +4,15 @@
 
 linters:
   enable:
-    - errcheck      # Check that errors are handled
-    - gosimple      # Simplify code
-    - govet         # Go vet checks
-    - ineffassign   # Detect ineffectual assignments
-    - staticcheck   # Static analysis (SA class rules)
-    - unused        # Detect unused code
-    - bodyclose     # Check that HTTP response bodies are closed
-    - noctx         # Detect HTTP calls without a context
-    - contextcheck  # Check that context is properly propagated
+    - errcheck # Check that errors are handled
+    - gosimple # Simplify code
+    - govet # Go vet checks
+    - ineffassign # Detect ineffectual assignments
+    - staticcheck # Static analysis (SA class rules)
+    - unused # Detect unused code
+    - bodyclose # Check that HTTP response bodies are closed
+    - noctx # Detect HTTP calls without a context
+    - contextcheck # Check that context is properly propagated
 
 linters-settings:
   errcheck:
