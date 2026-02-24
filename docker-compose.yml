@@ -164,13 +164,14 @@ services:
     ports:
       - "5432:5432" # Exposed locally for DB GUI tools (TablePlus, DBeaver, etc.)
     volumes:
-      - postgres_data:/var/lib/postgresql        # PG18+: parent dir, PG manages the versioned subdir
+      - postgres_data:/var/lib/postgresql        # mounts volume; PGDATA=/var/lib/postgresql/data inside it
       - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-jobmate} -d ${POSTGRES_DB:-jobmate}"]
       interval: 5s
       timeout: 5s
       retries: 10
+      start_period: 20s
     networks:
       - internal_network
 
@@ -189,5 +190,6 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+      start_period: 5s
     networks:
       - internal_network

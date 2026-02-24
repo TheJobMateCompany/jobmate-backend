@@ -202,7 +202,7 @@ services:
     container_name: jm_postgres
     env_file: .env
     volumes:
-      - postgres_data:/var/lib/postgresql        # PG18+: parent dir, PG manages the versioned subdir
+      - postgres_data:/var/lib/postgresql/data
       - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     deploy:
       resources:
@@ -215,6 +215,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+      start_period: 30s
     restart: unless-stopped
     networks:
       - internal_network
@@ -239,6 +240,7 @@ services:
       interval: 10s
       timeout: 3s
       retries: 10
+      start_period: 10s
     restart: unless-stopped
     networks:
       - internal_network
