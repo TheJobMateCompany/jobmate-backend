@@ -6,13 +6,14 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev && \
     rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
+COPY discovery-service/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy Python source files only
-COPY src/ .
+COPY discovery-service/src/ .
 
-# Proto definitions mounted via docker-compose volume at /app/proto
+# Copy shared proto definitions (baked into image for production)
+COPY proto/ /app/proto/
 
 EXPOSE 4002 9083
 

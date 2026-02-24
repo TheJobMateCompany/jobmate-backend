@@ -28,12 +28,10 @@ def _load_proto():
         return
     import sys
 
-    from grpc_tools import (
-        _proto,  # type: ignore[import]
-        protoc,
-    )
+    import grpc_tools
+    from grpc_tools import protoc
 
-    proto_include = os.path.dirname(_proto.__file__)
+    proto_include = os.path.join(os.path.dirname(grpc_tools.__file__), "_proto")
     out_dir = "/tmp/discovery_service_proto"
     os.makedirs(out_dir, exist_ok=True)
 

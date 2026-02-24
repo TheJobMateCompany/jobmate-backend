@@ -6,14 +6,14 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev && \
     rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
+COPY profile-service/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy service code
-COPY src/ .
+COPY profile-service/src/ .
 
-# Copy proto definitions (mounted at /app/proto in compose)
-# Volume handled in docker-compose.yml
+# Copy shared proto definitions (baked into image for production)
+COPY proto/ /app/proto/
 
 EXPOSE 4001 9081
 

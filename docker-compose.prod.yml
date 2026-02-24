@@ -21,7 +21,7 @@ services:
   # Reverse Proxy — Traefik + Let's Encrypt (TLS auto)
   # ─────────────────────────────────────────────────────────────
   traefik:
-    image: traefik:latest
+    image: traefik:v3.3
     container_name: jm_traefik
     command:
       - "--providers.docker=true"
@@ -91,7 +91,7 @@ services:
   # ─────────────────────────────────────────────────────────────
   profile-service:
     image: ghcr.io/${GHCR_ORG}/jobmate-profile-service:${IMAGE_TAG:-latest}
-    container_name: jm_profile
+    container_name: jm_profile_service
     env_file: .env
     environment:
       - GRPC_PORT=9081
@@ -107,8 +107,10 @@ services:
         reservations:
           memory: 128M
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - internal_network
@@ -131,8 +133,10 @@ services:
         reservations:
           memory: 128M
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - internal_network
@@ -157,8 +161,10 @@ services:
         reservations:
           memory: 512M
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - internal_network
@@ -180,8 +186,10 @@ services:
         reservations:
           memory: 64M
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - internal_network
@@ -190,7 +198,7 @@ services:
   # PostgreSQL 16
   # ─────────────────────────────────────────────────────────────
   postgres:
-    image: postgres:latest
+    image: postgres:16
     container_name: jm_postgres
     env_file: .env
     volumes:
@@ -215,7 +223,7 @@ services:
   # Redis 7 — AOF persistence enabled
   # ─────────────────────────────────────────────────────────────
   redis:
-    image: redis:latest
+    image: redis:7
     container_name: jm_redis
     command: redis-server --appendonly yes
     volumes:

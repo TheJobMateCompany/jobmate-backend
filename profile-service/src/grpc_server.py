@@ -32,15 +32,13 @@ def _load_proto():
         return
     import sys
 
-    from grpc_tools import (
-        _proto,  # type: ignore[import]
-        protoc,
-    )
+    import grpc_tools
+    from grpc_tools import protoc
 
     out_dir = "/tmp/profile_service_proto"
     os.makedirs(out_dir, exist_ok=True)
 
-    proto_include = os.path.dirname(_proto.__file__)
+    proto_include = os.path.join(os.path.dirname(grpc_tools.__file__), "_proto")
 
     code = protoc.main(
         [
