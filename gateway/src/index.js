@@ -62,6 +62,9 @@ logger.info('Apollo Server started.');
 // ─────────────────────────────────────────────────────────────
 const app = express();
 
+// Trust the first proxy (Traefik) so express-rate-limit reads X-Forwarded-For correctly.
+app.set('trust proxy', 1);
+
 app.use(cors({
   origin: process.env.CORS_ORIGIN || '*',
   methods: ['GET', 'POST', 'OPTIONS'],
