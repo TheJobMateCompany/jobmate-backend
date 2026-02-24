@@ -1,10 +1,10 @@
 target-version = "py312"
 line-length = 100
+src = ["src"]
 
 [lint]
 select = ["E", "F", "I", "UP"]
 ignore = ["E501"]
 
 [lint.isort]
-src = ["src"]
 known-first-party = ["config", "database", "redis_client", "grpc_server"]
