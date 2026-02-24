@@ -1,7 +1,5 @@
 """Entry-point: starts gRPC server + FastAPI HTTP health endpoint concurrently."""
 
-from __future__ import annotations
-
 import asyncio
 import logging
 
