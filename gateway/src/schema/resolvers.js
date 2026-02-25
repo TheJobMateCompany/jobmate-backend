@@ -57,6 +57,13 @@ const rowToUser = (row) => ({
     : null,
 });
 
+/** Convert a protobuf Timestamp { seconds, nanos } to an ISO-8601 string */
+const protoTsToISO = (ts) => {
+  if (!ts) return null;
+  const ms = Number(ts.seconds) * 1000 + Math.floor(Number(ts.nanos ?? 0) / 1e6);
+  return new Date(ms).toISOString();
+};
+
 // ────────────────────────────────────────────────────────────
 // Resolvers
 // ────────────────────────────────────────────────────────────
@@ -67,7 +74,12 @@ export const resolvers = {
 
   // Custom scalar
   JSON: GraphQLJSON,
-
+  // ── SearchConfig type resolver: convert proto Timestamps ───────────────────
+  SearchConfig: {
+    createdAt: (parent) => protoTsToISO(parent.createdAt) ?? '',
+    updatedAt: (parent) => protoTsToISO(parent.updatedAt) ?? '',
+    startDate: (parent) => parent.startDate || null,
+  },
   // ── Queries ─────────────────────────────────────────────
   Query: {
     health: () => 'OK',
@@ -181,8 +193,6 @@ export const resolvers = {
     // ── login ─────────────────────────────────────────────
     login: async (_parent, { email, password }) => {
       const normalizedEmail = email.trim().toLowerCase();
-
-      const row = await getUserById(normalizedEmail).catch(() => null);
 
       // Fetch user with password hash
       const { rows } = await query(
