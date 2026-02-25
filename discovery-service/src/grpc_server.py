@@ -108,18 +108,21 @@ class DiscoveryServicer:
         row = await pool.fetchrow(
             """
             INSERT INTO job_feed
-              (user_id, search_config_id, title, description, source_url, status, raw_data, is_manual)
-            VALUES ($1, $2, $3, $4, $5, 'PENDING', $6, TRUE)
-            ON CONFLICT (source_url) DO UPDATE SET updated_at = NOW()
+              (user_id, search_config_id, source_url, status, raw_data, is_manual)
+            VALUES ($1, $2, $3, 'PENDING', $4, TRUE)
+            ON CONFLICT (source_url) DO NOTHING
             RETURNING id
             """,
             uid,
             search_config_id,
-            job_data["title"],
-            job_data["description"],
             request.url,
             json.dumps(job_data),
         )
+        if row is None:
+            # Already exists — fetch the existing id
+            row = await pool.fetchrow(
+                "SELECT id FROM job_feed WHERE source_url = $1", request.url
+            )
         job_feed_id = str(row["id"])
 
         await redis_client.publish(
@@ -168,15 +171,13 @@ class DiscoveryServicer:
         row = await pool.fetchrow(
             """
             INSERT INTO job_feed
-              (user_id, search_config_id, title, description, source_url, status, raw_data,
+              (user_id, search_config_id, source_url, status, raw_data,
                is_manual, company_name, company_description, why_us)
-            VALUES ($1, $2, $3, $4, $5, 'PENDING', $6, TRUE, $7, $8, $9)
+            VALUES ($1, $2, $3, 'PENDING', $4, TRUE, $5, $6, $7)
             RETURNING id
             """,
             uid,
             search_config_id,
-            f"Manual — {request.company_name}",
-            request.profile_wanted or "",
             f"manual://{uid}/{request.company_name}",
             json.dumps(raw_data),
             request.company_name,
