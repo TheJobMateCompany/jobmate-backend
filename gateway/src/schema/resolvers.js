@@ -79,8 +79,24 @@ export const resolvers = {
     createdAt: (parent) => protoTsToISO(parent.createdAt) ?? '',
     updatedAt: (parent) => protoTsToISO(parent.updatedAt) ?? '',
     startDate: (parent) => parent.startDate || null,
-  },
-  // ── Queries ─────────────────────────────────────────────
+  },  // ── Application type resolver: convert proto Timestamps ───────────────────────
+  Application: {
+    createdAt: (parent) => {
+      const v = parent.createdAt ?? parent.created_at;
+      if (!v) return '';
+      if (typeof v === 'string') return v;
+      if (v instanceof Date) return v.toISOString();
+      // protobuf Timestamp { seconds, nanos }
+      return protoTsToISO(v) ?? '';
+    },
+    updatedAt: (parent) => {
+      const v = parent.updatedAt ?? parent.updated_at;
+      if (!v) return '';
+      if (typeof v === 'string') return v;
+      if (v instanceof Date) return v.toISOString();
+      return protoTsToISO(v) ?? '';
+    },
+  },  // ── Queries ─────────────────────────────────────────────
   Query: {
     health: () => 'OK',
 
