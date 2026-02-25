@@ -101,6 +101,9 @@ CREATE TABLE IF NOT EXISTS search_configs (
 -- ─────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS job_feed (
   id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  -- Direct owner reference — set for manually-added jobs (addJobByUrl / addJobManually).
+  -- Allows approveJob to verify ownership even when search_config_id is NULL.
+  user_id          UUID REFERENCES users(id) ON DELETE CASCADE,
   -- Nullable: ON DELETE SET NULL so manual jobs survive config deletion
   search_config_id UUID REFERENCES search_configs(id) ON DELETE SET NULL,
   raw_data         JSONB NOT NULL DEFAULT '{}', -- Full scraped / submitted job offer payload

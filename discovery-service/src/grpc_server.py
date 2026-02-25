@@ -108,11 +108,12 @@ class DiscoveryServicer:
         row = await pool.fetchrow(
             """
             INSERT INTO job_feed
-              (search_config_id, title, description, source_url, status, raw_data, is_manual)
-            VALUES ($1, $2, $3, $4, 'PENDING', $5, TRUE)
+              (user_id, search_config_id, title, description, source_url, status, raw_data, is_manual)
+            VALUES ($1, $2, $3, $4, $5, 'PENDING', $6, TRUE)
             ON CONFLICT (source_url) DO UPDATE SET updated_at = NOW()
             RETURNING id
             """,
+            uid,
             search_config_id,
             job_data["title"],
             job_data["description"],
@@ -167,11 +168,12 @@ class DiscoveryServicer:
         row = await pool.fetchrow(
             """
             INSERT INTO job_feed
-              (search_config_id, title, description, source_url, status, raw_data,
+              (user_id, search_config_id, title, description, source_url, status, raw_data,
                is_manual, company_name, company_description, why_us)
-            VALUES ($1, $2, $3, $4, 'PENDING', $5, TRUE, $6, $7, $8)
+            VALUES ($1, $2, $3, $4, $5, 'PENDING', $6, TRUE, $7, $8, $9)
             RETURNING id
             """,
+            uid,
             search_config_id,
             f"Manual — {request.company_name}",
             request.profile_wanted or "",

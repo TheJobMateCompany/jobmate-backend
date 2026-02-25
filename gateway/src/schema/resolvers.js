@@ -372,12 +372,14 @@ export const resolvers = {
       requireAuth(context);
       const { userId } = context.user;
 
-      // 1. Verify ownership — job must belong to the authenticated user via search_configs
+      // 1. Verify ownership — job must belong to the authenticated user either via
+      //    search_configs (scraped jobs) OR via job_feed.user_id (manually added jobs).
       const { rows: feedRows } = await query(
         `SELECT jf.id, jf.status, jf.raw_data, jf.source_url, jf.created_at
          FROM job_feed jf
-         JOIN search_configs sc ON sc.id = jf.search_config_id
-         WHERE jf.id = $1 AND sc.user_id = $2`,
+         LEFT JOIN search_configs sc ON sc.id = jf.search_config_id
+         WHERE jf.id = $1
+           AND (sc.user_id = $2 OR jf.user_id = $2)`,
         [jobFeedId, userId]
       );
 
