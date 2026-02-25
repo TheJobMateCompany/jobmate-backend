@@ -110,6 +110,9 @@ CREATE TABLE IF NOT EXISTS job_feed (
   source_url       TEXT,                        -- Original URL (scraped) or NULL (manual form)
   status           job_status NOT NULL DEFAULT 'PENDING',
   is_manual        BOOLEAN NOT NULL DEFAULT FALSE, -- TRUE = added by user (skips PENDING, starts APPROVED)
+  -- Denormalized structured columns (duplicated from raw_data for efficient querying)
+  title               VARCHAR(512),            -- Job title (scraped) or company name (manual)
+  description         TEXT,                    -- Job description / profile wanted
   -- Extra structured columns for manually-entered jobs (supplement raw_data)
   company_name        VARCHAR(255),
   company_description TEXT,

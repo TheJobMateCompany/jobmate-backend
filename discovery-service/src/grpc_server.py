@@ -108,8 +108,9 @@ class DiscoveryServicer:
         row = await pool.fetchrow(
             """
             INSERT INTO job_feed
-              (user_id, search_config_id, source_url, status, raw_data, is_manual)
-            VALUES ($1, $2, $3, 'PENDING', $4, TRUE)
+              (user_id, search_config_id, source_url, status, raw_data, is_manual,
+               title, description)
+            VALUES ($1, $2, $3, 'PENDING', $4, TRUE, $5, $6)
             ON CONFLICT (source_url) DO NOTHING
             RETURNING id
             """,
@@ -117,6 +118,8 @@ class DiscoveryServicer:
             search_config_id,
             request.url,
             json.dumps(job_data),
+            job_data.get("title"),
+            job_data.get("description"),
         )
         if row is None:
             # Already exists — fetch the existing id
@@ -172,14 +175,16 @@ class DiscoveryServicer:
             """
             INSERT INTO job_feed
               (user_id, search_config_id, source_url, status, raw_data,
-               is_manual, company_name, company_description, why_us)
-            VALUES ($1, $2, $3, 'PENDING', $4, TRUE, $5, $6, $7)
+               is_manual, title, description, company_name, company_description, why_us)
+            VALUES ($1, $2, $3, 'PENDING', $4, TRUE, $5, $6, $7, $8, $9)
             RETURNING id
             """,
             uid,
             search_config_id,
             f"manual://{uid}/{request.company_name}",
             json.dumps(raw_data),
+            request.company_name,
+            request.profile_wanted or None,
             request.company_name,
             request.company_description or None,
             request.why_us or None,
