@@ -306,6 +306,41 @@ export const resolvers = {
       return userClient.uploadCV(context.user.userId, buffer, filename, mimetype);
     },
 
+    // ── createApplication (manual kanban entry) ────────────────────────────
+    createApplication: async (_parent, { jobFeedId }, context) => {
+      requireAuth(context);
+      const { userId } = context.user;
+
+      // Insert a bare application; NULL job_feed_id = manual entry.
+      // ON CONFLICT: a user can only have one manual (null job_feed_id) application
+      // — just bump updated_at so the row is returned.
+      const { rows } = await query(
+        `INSERT INTO applications (user_id, job_feed_id, current_status)
+         VALUES ($1, $2, 'TO_APPLY')
+         ON CONFLICT (user_id, job_feed_id) DO UPDATE
+           SET updated_at = NOW()
+         RETURNING id, job_feed_id, current_status, ai_analysis, generated_cover_letter,
+                   user_notes, user_rating, relance_reminder_at, history_log,
+                   created_at, updated_at`,
+        [userId, jobFeedId ?? null],
+      );
+
+      const app = rows[0];
+      return {
+        id: app.id,
+        jobFeedId: app.job_feed_id,
+        currentStatus: app.current_status,
+        aiAnalysis: app.ai_analysis,
+        generatedCoverLetter: app.generated_cover_letter,
+        userNotes: app.user_notes,
+        userRating: app.user_rating,
+        relanceReminderAt: app.relance_reminder_at,
+        historyLog: app.history_log,
+        createdAt: app.created_at,
+        updatedAt: app.updated_at,
+      };
+    },
+
     // ── approveJob (Phase 3) ───────────────────────────────
     approveJob: async (_parent, { jobFeedId }, context) => {
       requireAuth(context);

@@ -6,7 +6,7 @@ import json
 import logging
 import os
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 import grpc
 from google.protobuf import timestamp_pb2
@@ -23,6 +23,16 @@ logger = logging.getLogger(__name__)
 # Loaded lazily after grpc_tools path is set up
 _pb2 = None
 _pb2_grpc = None
+
+
+def _parse_date(s: str | None) -> date | None:
+    """Convert an ISO-8601 date string (YYYY-MM-DD) to datetime.date, or None."""
+    if not s:
+        return None
+    try:
+        return date.fromisoformat(s)
+    except ValueError:
+        return None
 
 
 def _load_proto():
@@ -181,7 +191,7 @@ class ProfileServicer:
             list(request.red_flags),
             request.salary_min or 0,
             request.salary_max or 0,
-            request.start_date or None,
+            _parse_date(request.start_date),
             request.duration or None,
             request.cover_letter_template or None,
         )
@@ -201,7 +211,7 @@ class ProfileServicer:
                  red_flags           = CASE WHEN $7::text[] IS NOT NULL THEN $7 ELSE red_flags END,
                  salary_min          = CASE WHEN $8 <> 0 THEN $8 ELSE salary_min END,
                  salary_max          = CASE WHEN $9 <> 0 THEN $9 ELSE salary_max END,
-                 start_date          = COALESCE(NULLIF($10,'')::date, start_date),
+                 start_date          = COALESCE($10, start_date),
                  duration            = COALESCE(NULLIF($11,''), duration),
                  cover_letter_template = COALESCE(NULLIF($12,''), cover_letter_template),
                  updated_at          = NOW()
@@ -218,7 +228,7 @@ class ProfileServicer:
             list(request.red_flags) if request.red_flags else None,
             request.salary_min,
             request.salary_max,
-            request.start_date,
+            _parse_date(request.start_date),
             request.duration,
             request.cover_letter_template,
         )
