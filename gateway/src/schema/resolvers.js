@@ -124,12 +124,13 @@ export const resolvers = {
       requireAuth(context);
       const { userId } = context.user;
 
-      // Join through search_configs so users only see their own feed
+      // Include both search-config jobs and manual jobs.
+      // Manual jobs can have search_config_id NULL and are owned by jf.user_id.
       const { rows } = await query(
         `SELECT jf.id, jf.raw_data, jf.source_url, jf.status, jf.created_at
          FROM job_feed jf
-         JOIN search_configs sc ON sc.id = jf.search_config_id
-         WHERE sc.user_id = $1
+         LEFT JOIN search_configs sc ON sc.id = jf.search_config_id
+         WHERE (sc.user_id = $1 OR jf.user_id = $1)
            AND ($2::job_status IS NULL OR jf.status = $2::job_status)
            AND jf.expires_at > NOW()
          ORDER BY jf.created_at DESC
@@ -329,7 +330,20 @@ export const resolvers = {
         });
       }
 
-      return userClient.uploadCV(context.user.userId, buffer, filename, mimetype);
+      const uploaded = await userClient.uploadCV(
+        context.user.userId,
+        buffer,
+        filename,
+        mimetype,
+      );
+
+      try {
+        await userClient.parseCV(context.user.userId, uploaded.cvUrl);
+      } catch (err) {
+        console.warn('[uploadCV] parseCV enqueue failed:', err?.message || err);
+      }
+
+      return uploaded;
     },
 
     // ── createApplication (manual kanban entry) ────────────────────────────
