@@ -104,37 +104,37 @@ class DiscoveryServicer:
                 grpc.StatusCode.FAILED_PRECONDITION, "job contains red-flag content"
             )
 
-                # Insert into job_feed (idempotent per user + source_url)
-                # Do not rely on ON CONFLICT(source_url): production DB may not have a
-                # matching UNIQUE/EXCLUDE constraint and source_url is not globally unique.
-                row = await pool.fetchrow(
-                        """
-                        WITH existing AS (
-                            SELECT id
-                            FROM job_feed
-                            WHERE user_id = $1 AND source_url = $3
-                            LIMIT 1
-                        ),
-                        inserted AS (
-                            INSERT INTO job_feed
-                                (user_id, search_config_id, source_url, status, raw_data, is_manual,
-                                 title, description)
-                            SELECT $1, $2, $3, 'PENDING', $4, TRUE, $5, $6
-                            WHERE NOT EXISTS (SELECT 1 FROM existing)
-                            RETURNING id
-                        )
-                        SELECT id FROM inserted
-                        UNION ALL
-                        SELECT id FROM existing
-                        LIMIT 1
-                        """,
-                        uid,
-                        search_config_id,
-                        request.url,
-                        json.dumps(job_data),
-                        job_data.get("title"),
-                        job_data.get("description"),
-                )
+        # Insert into job_feed (idempotent per user + source_url)
+        # Do not rely on ON CONFLICT(source_url): production DB may not have a
+        # matching UNIQUE/EXCLUDE constraint and source_url is not globally unique.
+        row = await pool.fetchrow(
+            """
+            WITH existing AS (
+                SELECT id
+                FROM job_feed
+                WHERE user_id = $1 AND source_url = $3
+                LIMIT 1
+            ),
+            inserted AS (
+                INSERT INTO job_feed
+                    (user_id, search_config_id, source_url, status, raw_data, is_manual,
+                     title, description)
+                SELECT $1, $2, $3, 'PENDING', $4, TRUE, $5, $6
+                WHERE NOT EXISTS (SELECT 1 FROM existing)
+                RETURNING id
+            )
+            SELECT id FROM inserted
+            UNION ALL
+            SELECT id FROM existing
+            LIMIT 1
+            """,
+            uid,
+            search_config_id,
+            request.url,
+            json.dumps(job_data),
+            job_data.get("title"),
+            job_data.get("description"),
+        )
         job_feed_id = str(row["id"])
 
         await redis_client.publish(
