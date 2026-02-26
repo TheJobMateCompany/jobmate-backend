@@ -21,10 +21,10 @@ def _optional_int(key: str, default: int) -> int:
     raw = os.getenv(key, str(default)).strip()
     try:
         return int(raw)
-    except ValueError:
+    except ValueError as err:
         raise RuntimeError(
             f"[ai-coach-service] Env var '{key}' must be an integer, got '{raw}'."
-        )
+        ) from err
 
 
 # ── PostgreSQL ─────────────────────────────────────────────────

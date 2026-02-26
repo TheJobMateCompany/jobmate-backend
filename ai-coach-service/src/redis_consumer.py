@@ -107,7 +107,7 @@ async def _safe_analyze(application_id: str, user_id: str, rdb: aioredis.Redis) 
             analyzer.analyze(application_id, user_id, rdb),
             timeout=ANALYSIS_TIMEOUT_SECONDS,
         )
-    except asyncio.TimeoutError:
+    except TimeoutError:
         logger.error(
             "Analysis timeout after %ss for application %s",
             ANALYSIS_TIMEOUT_SECONDS,
