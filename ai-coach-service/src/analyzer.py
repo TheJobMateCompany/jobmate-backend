@@ -75,10 +75,20 @@ async def analyze(application_id: str, user_id: str, rdb) -> None:
     experience: list = _load_json(row["experience"])
 
     job_title: str = raw_data.get("title", raw_data.get("poste", "Unknown position"))
-    company: str = raw_data.get(
+    company_raw = raw_data.get(
         "company_name",
         raw_data.get("company", raw_data.get("entreprise", "Unknown company")),
     )
+    if isinstance(company_raw, str):
+        company: str = company_raw
+    elif isinstance(company_raw, dict):
+        company = (
+            str(company_raw.get("display_name") or "").strip()
+            or str(company_raw.get("name") or "").strip()
+            or "Unknown company"
+        )
+    else:
+        company = str(company_raw or "Unknown company")
     description: str = raw_data.get("description", "")
     full_name: str = row["full_name"] or ""
     skills_flat: list[str] = _flatten_skills(skills)

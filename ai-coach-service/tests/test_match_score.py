@@ -105,6 +105,19 @@ class TestComputeEdge:
         score = ms.compute(PYTHON_SKILLS, [], {})
         assert score == 50
 
+    def test_company_as_object_does_not_crash(self):
+        adzuna_job = {
+            "title": "Développeur Python",
+            "description": "FastAPI, Docker, PostgreSQL",
+            "company": {
+                "__CLASS__": "Adzuna::API::Response::Company",
+                "display_name": "VIVERIS",
+            },
+        }
+        score = ms.compute(PYTHON_SKILLS, [], adzuna_job)
+        assert isinstance(score, int)
+        assert 0 <= score <= 100
+
 
 # ── compute() — skills formats ────────────────────────────────────────────────
 

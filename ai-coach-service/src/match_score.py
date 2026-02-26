@@ -128,13 +128,28 @@ def _extract_profile_keywords(
 
 def _extract_job_keywords(raw_data: dict) -> set[str]:
     """Extract relevant keywords from a job offer's raw_data JSONB."""
+    def _to_text(value: Any) -> str:
+        if value is None:
+            return ""
+        if isinstance(value, str):
+            return value
+        if isinstance(value, dict):
+            # Common Adzuna shape: {"display_name": "..."}
+            display_name = value.get("display_name")
+            if isinstance(display_name, str):
+                return display_name
+            return " ".join(str(v) for v in value.values() if isinstance(v, str))
+        if isinstance(value, list | tuple | set):
+            return " ".join(_to_text(v) for v in value)
+        return str(value)
+
     parts = [
-        raw_data.get("title", ""),
-        raw_data.get("description", ""),
-        raw_data.get("company", ""),
+        _to_text(raw_data.get("title", "")),
+        _to_text(raw_data.get("description", "")),
+        _to_text(raw_data.get("company", "")),
     ]
     # Some Adzuna fields
-    parts.append(raw_data.get("contractType", ""))
+    parts.append(_to_text(raw_data.get("contractType", "")))
     return _tokenise(" ".join(p for p in parts if p))
 
 
