@@ -128,6 +128,7 @@ def _extract_profile_keywords(
 
 def _extract_job_keywords(raw_data: dict) -> set[str]:
     """Extract relevant keywords from a job offer's raw_data JSONB."""
+
     def _to_text(value: Any) -> str:
         if value is None:
             return ""
