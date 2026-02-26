@@ -16,6 +16,10 @@ logger = logging.getLogger(__name__)
 _client: AsyncOpenAI | None = None
 
 
+def is_configured() -> bool:
+    return bool(config.OPENROUTER_API_KEY)
+
+
 def get_client() -> AsyncOpenAI | None:
     """Returns the LLM client, or None if no API key is configured."""
     global _client
@@ -54,6 +58,7 @@ async def chat_json(
                 {"role": "user", "content": user},
             ],
             temperature=temperature,
+            timeout=config.OPENROUTER_TIMEOUT_SECONDS,
             # Ask the model to return JSON — not all routed models support
             # response_format natively, so we also enforce it in the prompts.
             response_format={"type": "json_object"},
@@ -83,6 +88,7 @@ async def chat_text(system: str, user: str, temperature: float = 0.7) -> str | N
                 {"role": "user", "content": user},
             ],
             temperature=temperature,
+            timeout=config.OPENROUTER_TIMEOUT_SECONDS,
         )
         return (response.choices[0].message.content or "").strip()
     except Exception as exc:

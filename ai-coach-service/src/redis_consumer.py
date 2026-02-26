@@ -22,7 +22,7 @@ import redis.asyncio as aioredis
 
 import analyzer
 import cv_parser
-from config import REDIS_URL
+from config import ANALYSIS_TIMEOUT_SECONDS, REDIS_URL
 
 logger = logging.getLogger(__name__)
 
@@ -103,10 +103,47 @@ def _dispatch_parse_cv(payload: dict, rdb: aioredis.Redis) -> None:
 async def _safe_analyze(application_id: str, user_id: str, rdb: aioredis.Redis) -> None:
     """Wrapper that catches and logs any exception from the analyzer."""
     try:
-        await analyzer.analyze(application_id, user_id, rdb)
+        await asyncio.wait_for(
+            analyzer.analyze(application_id, user_id, rdb),
+            timeout=ANALYSIS_TIMEOUT_SECONDS,
+        )
+    except asyncio.TimeoutError:
+        logger.error(
+            "Analysis timeout after %ss for application %s",
+            ANALYSIS_TIMEOUT_SECONDS,
+            application_id,
+        )
+        await rdb.publish(
+            "EVENT_ANALYSIS_DONE",
+            json.dumps(
+                {
+                    "type": "EVENT_ANALYSIS_DONE",
+                    "applicationId": application_id,
+                    "userId": user_id,
+                    "matchScore": None,
+                    "hasCoverLetter": False,
+                    "status": "timeout",
+                    "error": "Analysis exceeded max duration",
+                }
+            ),
+        )
     except Exception as exc:
         logger.exception(
             "Unhandled error analyzing application %s: %s", application_id, exc
+        )
+        await rdb.publish(
+            "EVENT_ANALYSIS_DONE",
+            json.dumps(
+                {
+                    "type": "EVENT_ANALYSIS_DONE",
+                    "applicationId": application_id,
+                    "userId": user_id,
+                    "matchScore": None,
+                    "hasCoverLetter": False,
+                    "status": "error",
+                    "error": "Analysis failed",
+                }
+            ),
         )
 
 

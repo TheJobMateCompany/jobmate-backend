@@ -17,6 +17,16 @@ def _optional(key: str, default: str = "") -> str:
     return os.getenv(key, default).strip()
 
 
+def _optional_int(key: str, default: int) -> int:
+    raw = os.getenv(key, str(default)).strip()
+    try:
+        return int(raw)
+    except ValueError:
+        raise RuntimeError(
+            f"[ai-coach-service] Env var '{key}' must be an integer, got '{raw}'."
+        )
+
+
 # ── PostgreSQL ─────────────────────────────────────────────────
 DATABASE_URL: str = _require("DATABASE_URL")
 
@@ -31,6 +41,8 @@ OPENROUTER_BASE_URL: str = _optional(
 OPENROUTER_MODEL: str = _optional(
     "OPENROUTER_MODEL", "meta-llama/llama-3.3-70b-instruct"
 )
+OPENROUTER_TIMEOUT_SECONDS: int = _optional_int("OPENROUTER_TIMEOUT_SECONDS", 45)
+ANALYSIS_TIMEOUT_SECONDS: int = _optional_int("ANALYSIS_TIMEOUT_SECONDS", 120)
 
 # ── Service ────────────────────────────────────────────────────
 AI_COACH_PORT: int = int(_optional("AI_COACH_PORT", "8083"))

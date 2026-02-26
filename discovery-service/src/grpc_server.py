@@ -98,6 +98,17 @@ class DiscoveryServicer:
         # Scrape the URL
         job_data = await url_scraper.extract_job_from_url(request.url)
 
+        # Ensure stable keys consumed by mobile UI
+        scraped_title = (job_data.get("title") or "").strip()
+        scraped_desc = (job_data.get("description") or "").strip()
+        company_name = (job_data.get("company_name") or "").strip()
+        if not scraped_title:
+            job_data["title"] = company_name or request.url
+        if not scraped_desc:
+            job_data["description"] = ""
+        if company_name and not job_data.get("company"):
+            job_data["company"] = company_name
+
         # Red-flag check
         if scraper._has_red_flag(f"{job_data['title']} {job_data['description']}"):
             await context.abort(
@@ -171,7 +182,10 @@ class DiscoveryServicer:
                 )
 
         raw_data = {
+            "title": request.company_name,
+            "description": request.profile_wanted,
             "company_name": request.company_name,
+            "company": request.company_name,
             "company_description": request.company_description,
             "location": request.location,
             "profile_wanted": request.profile_wanted,
