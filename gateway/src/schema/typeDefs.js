@@ -233,6 +233,7 @@ export const typeDefs = `#graphql
 
     # ── Kanban (Phase 4) ──────────────────────
     createApplication(jobFeedId: ID): Application!
+    deleteApplication(applicationId: ID!): Boolean!
     moveCard(applicationId: ID!, newStatus: ApplicationStatus!): Application!
     addNote(applicationId: ID!, note: String!): Application!
     rateApplication(applicationId: ID!, rating: Int!): Application!

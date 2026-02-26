@@ -367,6 +367,25 @@ export const resolvers = {
       };
     },
 
+    // ── deleteApplication ──────────────────────────────────
+    deleteApplication: async (_parent, { applicationId }, context) => {
+      requireAuth(context);
+      const { userId } = context.user;
+
+      const { rowCount } = await query(
+        `DELETE FROM applications WHERE id = $1 AND user_id = $2`,
+        [applicationId, userId],
+      );
+
+      if (rowCount === 0) {
+        throw new GraphQLError('Application not found or does not belong to you.', {
+          extensions: { code: 'NOT_FOUND' },
+        });
+      }
+
+      return true;
+    },
+
     // ── approveJob (Phase 3) ───────────────────────────────
     approveJob: async (_parent, { jobFeedId }, context) => {
       requireAuth(context);
