@@ -22,7 +22,36 @@ import { resolvers } from './schema/resolvers.js';
 import { buildContext } from './middleware/auth.js';
 import { sseManager } from './sse/manager.js';
 import { subscriber } from './lib/redis.js';
+import { query } from './lib/db.js';
 import { logger } from './lib/logger.js';
+
+// ─────────────────────────────────────────────────────────────
+// Expo Push Notification helper (no API key required)
+// ─────────────────────────────────────────────────────────────
+async function sendExpoPush(token, title, body, data = {}) {
+  try {
+    if (!token || !token.startsWith('ExponentPushToken[')) return;
+    await fetch('https://exp.host/--/api/v2/push/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ to: token, title, body, data, sound: 'default' }),
+    });
+  } catch (err) {
+    console.error('[expo-push] Failed to send push notification:', err.message);
+  }
+}
+
+async function getPushToken(userId) {
+  try {
+    const { rows } = await query(
+      'SELECT expo_push_token FROM users WHERE id = $1',
+      [userId]
+    );
+    return rows[0]?.expo_push_token ?? null;
+  } catch {
+    return null;
+  }
+}
 
 const PORT = process.env.PORT || 4000;
 
@@ -140,7 +169,7 @@ app.get('/events', (req, res) => {
  * the frontend without requiring a page reload.
  * Payload: { jobFeedId, userId, searchConfigId }
  */
-await subscriber.subscribe('EVENT_JOB_DISCOVERED', (raw) => {
+await subscriber.subscribe('EVENT_JOB_DISCOVERED', async (raw) => {
   try {
     const payload = JSON.parse(raw);
     console.log(
@@ -151,6 +180,11 @@ await subscriber.subscribe('EVENT_JOB_DISCOVERED', (raw) => {
       jobFeedId: payload.jobFeedId,
       searchConfigId: payload.searchConfigId ?? null,
     });
+    const pushToken = await getPushToken(payload.userId);
+    await sendExpoPush(pushToken, 'Nouvelle offre 🔔', 'Une offre correspond à votre profil', {
+      type: 'JOB_DISCOVERED',
+      jobFeedId: payload.jobFeedId,
+    });
   } catch (err) {
     console.error('[redis] Failed to parse EVENT_JOB_DISCOVERED:', err.message);
   }
@@ -160,7 +194,7 @@ await subscriber.subscribe('EVENT_JOB_DISCOVERED', (raw) => {
  * EVENT_CV_PARSED — published by AI Coach after enriching a profile from a CV.
  * Payload: { type, userId, fieldsUpdated } or { type, userId, error }
  */
-await subscriber.subscribe('EVENT_CV_PARSED', (raw) => {
+await subscriber.subscribe('EVENT_CV_PARSED', async (raw) => {
   try {
     const payload = JSON.parse(raw);
     console.log(`[redis] EVENT_CV_PARSED — user ${payload.userId}`);
@@ -168,6 +202,10 @@ await subscriber.subscribe('EVENT_CV_PARSED', (raw) => {
       type: 'CV_PARSED',
       fieldsUpdated: payload.fieldsUpdated ?? null,
       error: payload.error ?? null,
+    });
+    const pushToken = await getPushToken(payload.userId);
+    await sendExpoPush(pushToken, 'CV analysé 📄', 'Votre profil a été mis à jour', {
+      type: 'CV_PARSED',
     });
   } catch (err) {
     console.error('[redis] Failed to parse EVENT_CV_PARSED:', err.message);
@@ -178,7 +216,7 @@ await subscriber.subscribe('EVENT_CV_PARSED', (raw) => {
  * EVENT_ANALYSIS_DONE — published by AI Coach after processing an application.
  * Payload: { type, applicationId, userId, matchScore, hasCoverLetter, analyzedAt }
  */
-await subscriber.subscribe('EVENT_ANALYSIS_DONE', (raw) => {
+await subscriber.subscribe('EVENT_ANALYSIS_DONE', async (raw) => {
   try {
     const payload = JSON.parse(raw);
     console.log(
@@ -191,6 +229,13 @@ await subscriber.subscribe('EVENT_ANALYSIS_DONE', (raw) => {
       hasCoverLetter: payload.hasCoverLetter ?? false,
       analyzedAt: payload.analyzedAt ?? null,
     });
+    const pushToken = await getPushToken(payload.userId);
+    await sendExpoPush(
+      pushToken,
+      'Analyse IA terminée ✅',
+      `Score : ${payload.matchScore ?? '–'}/100`,
+      { type: 'ANALYSIS_DONE', applicationId: payload.applicationId }
+    );
   } catch (err) {
     console.error('[redis] Failed to parse EVENT_ANALYSIS_DONE:', err.message);
   }
@@ -200,7 +245,7 @@ await subscriber.subscribe('EVENT_ANALYSIS_DONE', (raw) => {
  * EVENT_CARD_MOVED — published by Tracker Service after a Kanban card transition.
  * Payload: { type, applicationId, userId, from, to }
  */
-await subscriber.subscribe('EVENT_CARD_MOVED', (raw) => {
+await subscriber.subscribe('EVENT_CARD_MOVED', async (raw) => {
   try {
     const payload = JSON.parse(raw);
     console.log(
@@ -212,6 +257,13 @@ await subscriber.subscribe('EVENT_CARD_MOVED', (raw) => {
       from: payload.from,
       to: payload.to,
     });
+    const pushToken = await getPushToken(payload.userId);
+    await sendExpoPush(
+      pushToken,
+      'Candidature mise à jour 📋',
+      `Statut : ${payload.to}`,
+      { type: 'CARD_MOVED', applicationId: payload.applicationId }
+    );
   } catch (err) {
     console.error('[redis] Failed to parse EVENT_CARD_MOVED:', err.message);
   }

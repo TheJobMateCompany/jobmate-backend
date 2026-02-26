@@ -531,5 +531,15 @@ export const resolvers = {
       const result = await userClient.parseCV(context.user.userId, cvUrl);
       return result.success ?? false;
     },
+
+    // ── Notifications (Phase 6) ──────────────────────────
+    registerPushToken: async (_parent, { token }, context) => {
+      requireAuth(context);
+      await query(
+        'UPDATE users SET expo_push_token = $1 WHERE id = $2',
+        [token, context.user.userId]
+      );
+      return true;
+    },
   },
 };

@@ -244,7 +244,10 @@ export const typeDefs = `#graphql
     addJobManually(input: ManualJobInput!): ManualJobResult!
     triggerScan: ManualJobResult!
 
-      # ── CV ────────────────────────────────────
-      parseCV(cvUrl: String!): Boolean!
-    }
+    # ── CV ────────────────────────────────────
+    parseCV(cvUrl: String!): Boolean!
+
+    # ── Notifications (Phase 6) ───────────────
+    registerPushToken(token: String!): Boolean!
+  }
   `;
