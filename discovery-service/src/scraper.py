@@ -90,26 +90,38 @@ async def _fetch_all(job_title: str, location: str) -> list[JobResult]:
         return results
 
 
-async def _upsert_job(pool, job: JobResult, search_config_id: str | None) -> str | None:
+async def _upsert_job(
+    pool,
+    job: JobResult,
+    search_config_id: str | None,
+    user_id: str,
+) -> str | None:
     """
     Insert a job into job_feed, skipping if the source_url already exists.
     Returns the new job_feed row id, or None if skipped.
     """
     row = await pool.fetchrow(
         """
-        INSERT INTO job_feed
-          (search_config_id, title, description, source_url, salary_min, salary_max,
-           status, raw_data, company_name, is_manual)
-        VALUES ($1, $2, $3, $4, $5, $6, 'PENDING', $7, $8, FALSE)
-        ON CONFLICT (source_url) DO NOTHING
-        RETURNING id
+        WITH existing AS (
+            SELECT id
+            FROM job_feed
+            WHERE search_config_id = $1
+              AND source_url = $4
+            LIMIT 1
+        )
+                INSERT INTO job_feed
+                    (user_id, search_config_id, title, description, source_url,
+                     status, raw_data, company_name, is_manual)
+                SELECT $2, $1, $3, $5, $4,
+                             'PENDING', $6, $7, FALSE
+                WHERE NOT EXISTS (SELECT 1 FROM existing)
+                RETURNING id
         """,
         search_config_id,
-        job.title,
-        job.description,
+        user_id,
+        (job.title or "").strip() or "Untitled job",
         job.source_url,
-        int(job.salary_min),
-        int(job.salary_max),
+        job.description or "",
         json.dumps(job.raw_data),
         job.company_name or None,
     )
@@ -134,7 +146,7 @@ async def run_for_config(
                 if _has_red_flag(combined):
                     logger.debug("Red flag filtered: %s", job.title)
                     continue
-                jid = await _upsert_job(pool, job, search_config_id)
+                jid = await _upsert_job(pool, job, search_config_id, user_id)
                 if jid:
                     inserted += 1
                     await redis_client.publish(
