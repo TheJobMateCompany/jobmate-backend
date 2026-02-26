@@ -55,7 +55,24 @@ function userMeta(userId) {
  */
 function call(method, request, meta) {
   return new Promise((resolve, reject) => {
-    client[method](request, meta, (err, response) => {
+    const rpc =
+      typeof client[method] === 'function'
+        ? client[method].bind(client)
+        : typeof client[method.replace(/([A-Z]{2,})/g, (m) => m[0] + m.slice(1).toLowerCase())] ===
+              'function'
+          ? client[
+              method.replace(/([A-Z]{2,})/g, (m) => m[0] + m.slice(1).toLowerCase())
+            ].bind(client)
+          : null;
+
+    if (!rpc) {
+      const mapped = new Error(`Unknown gRPC method: ${method}`);
+      mapped.grpcCode = grpc.status.UNIMPLEMENTED;
+      reject(mapped);
+      return;
+    }
+
+    rpc(request, meta, (err, response) => {
       if (err) {
         const mapped = new Error(err.details || err.message);
         mapped.grpcCode = err.code;
