@@ -64,12 +64,18 @@ async def analyze(application_id: str, user_id: str, rdb) -> None:
         return
 
     # Deserialise JSONB fields
-    raw_data: dict = dict(row["job_raw_data"]) if row["job_raw_data"] else {}
+    _raw = row["job_raw_data"]
+    if isinstance(_raw, dict):
+        raw_data: dict = _raw
+    elif _raw:
+        raw_data = json.loads(_raw)
+    else:
+        raw_data = {}
     skills: list = _load_json(row["skills"])
     experience: list = _load_json(row["experience"])
 
-    job_title: str = raw_data.get("title", "Unknown position")
-    company: str = raw_data.get("company", "Unknown company")
+    job_title: str = raw_data.get("title", raw_data.get("poste", "Unknown position"))
+    company: str = raw_data.get("company_name", raw_data.get("company", raw_data.get("entreprise", "Unknown company")))
     description: str = raw_data.get("description", "")
     full_name: str = row["full_name"] or ""
     skills_flat: list[str] = _flatten_skills(skills)
