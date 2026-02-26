@@ -461,14 +461,22 @@ export const resolvers = {
       requireAuth(context);
       const { userId } = context.user;
 
-      // Verify ownership + update in one round-trip
+      // Verify ownership + update in one round-trip.
+      // A job belongs to the user either via search_configs (scraped jobs)
+      // OR directly via job_feed.user_id (manual additions).
       const { rows } = await query(
         `UPDATE job_feed jf
          SET status = 'REJECTED'
-         FROM search_configs sc
          WHERE jf.id = $1
-           AND jf.search_config_id = sc.id
-           AND sc.user_id = $2
+           AND (
+             jf.user_id = $2
+             OR EXISTS (
+               SELECT 1
+               FROM search_configs sc
+               WHERE sc.id = jf.search_config_id
+                 AND sc.user_id = $2
+             )
+           )
          RETURNING jf.id, jf.raw_data, jf.source_url, jf.status, jf.created_at`,
         [jobFeedId, userId]
       );

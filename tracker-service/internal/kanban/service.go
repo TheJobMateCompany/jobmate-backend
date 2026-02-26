@@ -96,14 +96,14 @@ func (s *Service) GetApplication(ctx context.Context, userID, appID string) (*Ap
 	return &a, nil
 }
 
-// CreateApplication inserts a new application at APPLIED status for the given job feed entry.
+// CreateApplication inserts a new application at TO_APPLY status for the given job feed entry.
 // It then publishes CMD_ANALYZE_JOB to kick off the AI Coach pipeline.
 func (s *Service) CreateApplication(ctx context.Context, userID, jobFeedID string) (*Application, error) {
 	var a Application
 	err := s.pool.QueryRow(ctx,
 		`WITH ins AS (
 		   INSERT INTO applications (user_id, job_feed_id, current_status)
-		   VALUES ($1, $2, 'APPLIED')
+		   VALUES ($1, $2, 'TO_APPLY')
 		   ON CONFLICT (user_id, job_feed_id) DO NOTHING
 		   RETURNING *
 		 )

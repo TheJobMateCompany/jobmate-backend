@@ -13,11 +13,11 @@ package discovery;
 
 service DiscoveryService {
   // Add a job by URL: Discovery scrapes the URL, applies red-flag filter,
-  // inserts as APPROVED (is_manual=true), publishes JOB_APPROVED to Redis.
+  // inserts as PENDING (is_manual=true), publishes EVENT_JOB_DISCOVERED to Redis.
   rpc AddJobByUrl(AddJobByUrlRequest) returns (AddJobByUrlResponse);
 
-  // Add a job manually via form fields: inserts as APPROVED immediately,
-  // publishes JOB_APPROVED to Redis.
+  // Add a job manually via form fields: inserts as PENDING,
+  // publishes EVENT_JOB_DISCOVERED to Redis.
   rpc AddJobManually(AddJobManuallyRequest) returns (AddJobManuallyResponse);
 
   // Trigger an immediate scrape cycle for all active search configs.
