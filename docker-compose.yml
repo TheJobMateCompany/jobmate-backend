@@ -1,7 +1,4 @@
 networks:
-  # Exposed to Traefik (gateway only)
-  web_network:
-    driver: bridge
   # Isolated internal mesh (no external exposure)
   internal_network:
     driver: bridge
@@ -13,24 +10,7 @@ volumes:
 
 services:
 
-  # ─────────────────────────────────────────────────────────────
-  # Reverse Proxy (Dev — HTTP only, dashboard enabled)
-  # ─────────────────────────────────────────────────────────────
-  traefik:
-    image: traefik:latest
-    container_name: jm_traefik
-    command:
-      - "--api.insecure=true"
-      - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false"
-      - "--entrypoints.web.address=:80"
-    ports:
-      - "80:80"
-      - "8090:8080" # Traefik dashboard → http://localhost:8090
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    networks:
-      - web_network
+  # Traefik removed for local-only development (gateway exposed directly)
 
   # ─────────────────────────────────────────────────────────────
   # API Gateway — Node.js + Apollo GraphQL + SSE
@@ -49,18 +29,14 @@ services:
     volumes:
       - ./gateway/src:/app/src  # Only src/ — keeps container's Linux node_modules intact
       - ./proto:/proto:ro  # shared proto definitions
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.gateway.rule=PathPrefix(`/graphql`) || PathPrefix(`/events`) || PathPrefix(`/health`)"
-      - "traefik.http.routers.gateway.entrypoints=web"
-      - "traefik.http.services.gateway.loadbalancer.server.port=4000"
+    ports:
+      - "4000:4000"
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     networks:
-      - web_network
       - internal_network
 
   # ─────────────────────────────────────────────────────────────
